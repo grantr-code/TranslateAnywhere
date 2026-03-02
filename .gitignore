@@ -1,0 +1,33 @@
+# Build artifacts
+build/
+dist/*.dmg
+.build/
+DerivedData/
+
+# Xcode
+xcuserdata/
+*.xcworkspace
+!*.xcodeproj
+
+# Rust
+Core/translator_core/target/
+
+# ThirdParty builds
+ThirdParty/CTranslate2/
+ThirdParty/sentencepiece/
+ThirdParty/build/
+
+# Models (large binary files)
+models/
+
+# Python venv for model conversion
+scripts/.venv/
+
+# OS
+.DS_Store
+*.swp
+*~
+
+# IDE
+.idea/
+.vscode/
