@@ -1,0 +1,412 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000000000000000000001 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000101 /* Contracts.swift */; };
+		A00000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000102 /* AppDelegate.swift */; };
+		A00000000000000000000003 /* TranslationPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000103 /* TranslationPanel.swift */; };
+		A00000000000000000000004 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000104 /* HotkeyManager.swift */; };
+		A00000000000000000000005 /* MenuManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000105 /* MenuManager.swift */; };
+		A00000000000000000000006 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000106 /* SettingsManager.swift */; };
+		A00000000000000000000007 /* TranslatorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000107 /* TranslatorService.swift */; };
+		A00000000000000000000008 /* SelectionCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000108 /* SelectionCapture.swift */; };
+		A00000000000000000000009 /* ClipboardManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000109 /* ClipboardManager.swift */; };
+		A0000000000000000000000A /* AccessibilityHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010A /* AccessibilityHelper.swift */; };
+		A0000000000000000000000B /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010B /* Accelerate.framework */; };
+		A0000000000000000000000C /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010C /* Carbon.framework */; };
+		A0000000000000000000000D /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010D /* AppKit.framework */; };
+		A0000000000000000000000E /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010E /* ApplicationServices.framework */; };
+		A0000000000000000000000F /* models in Resources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010F /* models */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		A00000000000000000000101 /* Contracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contracts.swift; sourceTree = "<group>"; };
+		A00000000000000000000102 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A00000000000000000000103 /* TranslationPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationPanel.swift; sourceTree = "<group>"; };
+		A00000000000000000000104 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
+		A00000000000000000000105 /* MenuManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuManager.swift; sourceTree = "<group>"; };
+		A00000000000000000000106 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
+		A00000000000000000000107 /* TranslatorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatorService.swift; sourceTree = "<group>"; };
+		A00000000000000000000108 /* SelectionCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionCapture.swift; sourceTree = "<group>"; };
+		A00000000000000000000109 /* ClipboardManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardManager.swift; sourceTree = "<group>"; };
+		A0000000000000000000010A /* AccessibilityHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityHelper.swift; sourceTree = "<group>"; };
+		A0000000000000000000010B /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
+		A0000000000000000000010C /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
+		A0000000000000000000010D /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		A0000000000000000000010E /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
+		A0000000000000000000010F /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = ../models; sourceTree = SOURCE_ROOT; };
+		A00000000000000000000110 /* TranslateAnywhere.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TranslateAnywhere.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000111 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A00000000000000000000112 /* TranslateAnywhere.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TranslateAnywhere.entitlements; sourceTree = "<group>"; };
+		A00000000000000000000113 /* translator_core.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = translator_core.h; path = ../Core/translator_core/include/translator_core.h; sourceTree = SOURCE_ROOT; };
+		A00000000000000000000114 /* CoreBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoreBridge.h; sourceTree = "<group>"; };
+		A00000000000000000000115 /* TranslateAnywhere-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "TranslateAnywhere-Bridging-Header.h"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000200 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0000000000000000000000B /* Accelerate.framework in Frameworks */,
+				A0000000000000000000000C /* Carbon.framework in Frameworks */,
+				A0000000000000000000000D /* AppKit.framework in Frameworks */,
+				A0000000000000000000000E /* ApplicationServices.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000300 /* root */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000301 /* TranslateAnywhere */,
+				A00000000000000000000302 /* Frameworks */,
+				A00000000000000000000303 /* Products */,
+				A00000000000000000000113 /* translator_core.h */,
+				A0000000000000000000010F /* models */,
+			);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000301 /* TranslateAnywhere */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000101 /* Contracts.swift */,
+				A00000000000000000000102 /* AppDelegate.swift */,
+				A00000000000000000000103 /* TranslationPanel.swift */,
+				A00000000000000000000104 /* HotkeyManager.swift */,
+				A00000000000000000000105 /* MenuManager.swift */,
+				A00000000000000000000106 /* SettingsManager.swift */,
+				A00000000000000000000107 /* TranslatorService.swift */,
+				A00000000000000000000108 /* SelectionCapture.swift */,
+				A00000000000000000000109 /* ClipboardManager.swift */,
+				A0000000000000000000010A /* AccessibilityHelper.swift */,
+				A00000000000000000000111 /* Info.plist */,
+				A00000000000000000000112 /* TranslateAnywhere.entitlements */,
+				A00000000000000000000114 /* CoreBridge.h */,
+				A00000000000000000000115 /* TranslateAnywhere-Bridging-Header.h */,
+			);
+			path = TranslateAnywhere;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000302 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000010B /* Accelerate.framework */,
+				A0000000000000000000010C /* Carbon.framework */,
+				A0000000000000000000010D /* AppKit.framework */,
+				A0000000000000000000010E /* ApplicationServices.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000303 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000110 /* TranslateAnywhere.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000400 /* TranslateAnywhere */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000601 /* Build configuration list for PBXNativeTarget "TranslateAnywhere" */;
+			buildPhases = (
+				A00000000000000000000500 /* Sources */,
+				A00000000000000000000200 /* Frameworks */,
+				A00000000000000000000501 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TranslateAnywhere;
+			productName = TranslateAnywhere;
+			productReference = A00000000000000000000110 /* TranslateAnywhere.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000000000000000000700 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				TargetAttributes = {
+					A00000000000000000000400 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+				};
+			};
+			buildConfigurationList = A00000000000000000000600 /* Build configuration list for PBXProject "TranslateAnywhere" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A00000000000000000000300 /* root */;
+			productRefGroup = A00000000000000000000303 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A00000000000000000000400 /* TranslateAnywhere */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000501 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0000000000000000000000F /* models in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000500 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000001 /* Contracts.swift in Sources */,
+				A00000000000000000000002 /* AppDelegate.swift in Sources */,
+				A00000000000000000000003 /* TranslationPanel.swift in Sources */,
+				A00000000000000000000004 /* HotkeyManager.swift in Sources */,
+				A00000000000000000000005 /* MenuManager.swift in Sources */,
+				A00000000000000000000006 /* SettingsManager.swift in Sources */,
+				A00000000000000000000007 /* TranslatorService.swift in Sources */,
+				A00000000000000000000008 /* SelectionCapture.swift in Sources */,
+				A00000000000000000000009 /* ClipboardManager.swift in Sources */,
+				A0000000000000000000000A /* AccessibilityHelper.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A00000000000000000000801 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A00000000000000000000802 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		A00000000000000000000803 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TranslateAnywhere/TranslateAnywhere.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../Core/translator_core/include",
+					"$(SRCROOT)/../ThirdParty/build/include",
+				);
+				INFOPLIST_FILE = TranslateAnywhere/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/../build/lib",
+					"$(SRCROOT)/../ThirdParty/build/lib",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-ltranslator_core",
+					"-lctranslate2",
+					"-lsentencepiece",
+					"-lc++",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.translateanywhere.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "TranslateAnywhere/TranslateAnywhere-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A00000000000000000000804 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TranslateAnywhere/TranslateAnywhere.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/../Core/translator_core/include",
+					"$(SRCROOT)/../ThirdParty/build/include",
+				);
+				INFOPLIST_FILE = TranslateAnywhere/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/../build/lib",
+					"$(SRCROOT)/../ThirdParty/build/lib",
+				);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-ltranslator_core",
+					"-lctranslate2",
+					"-lsentencepiece",
+					"-lc++",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.translateanywhere.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "TranslateAnywhere/TranslateAnywhere-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000600 /* Build configuration list for PBXProject "TranslateAnywhere" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000801 /* Debug */,
+				A00000000000000000000802 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000601 /* Build configuration list for PBXNativeTarget "TranslateAnywhere" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000803 /* Debug */,
+				A00000000000000000000804 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000000000000000000700 /* Project object */;
+}
