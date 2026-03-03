@@ -88,7 +88,13 @@ pub extern "C" fn tc_init(model_base_dir: *const u8, dir_len: u32, threads: i32)
         }
     };
 
-    let thread_count = if threads <= 0 { 4 } else { threads };
+    let thread_count = if threads <= 0 {
+        std::thread::available_parallelism()
+            .map(|v| v.get() as i32)
+            .unwrap_or(1)
+    } else {
+        threads
+    };
 
     match Translator::new(dir_str, thread_count) {
         Ok(t) => {
@@ -164,7 +170,6 @@ pub extern "C" fn tc_translate(input: *const u8, input_len: u32, direction: i32)
 
     match translator.translate(text, resolved_direction) {
         Ok(result) => TranslateResult::ok(result, resolved_direction),
-        Err(TranslateError::NotInitialized) => TranslateResult::error(STATUS_NOT_INITIALIZED),
         Err(TranslateError::ModelNotFound) => TranslateResult::error(STATUS_MODEL_NOT_FOUND),
         Err(TranslateError::EncodingError) => TranslateResult::error(STATUS_ENCODING_ERROR),
         Err(TranslateError::InvalidInput) => TranslateResult::error(STATUS_INVALID_INPUT),

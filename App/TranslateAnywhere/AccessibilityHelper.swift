@@ -14,6 +14,12 @@ import os.log
 
 final class AccessibilityHelper {
 
+    struct FocusedElementContext {
+        let isSecure: Bool
+        let isEditableTextInput: Bool?
+        let role: String?
+    }
+
     // MARK: - Logger
 
     private static let logger = Logger(
@@ -48,6 +54,20 @@ final class AccessibilityHelper {
 
     // MARK: - Selected Text via AX
 
+    /// Returns metadata about the currently focused element. If Accessibility
+    /// permission is missing, returns nil.
+    static func focusedElementContext() -> FocusedElementContext? {
+        guard hasPermission() else {
+            logger.warning("Accessibility permission not granted")
+            return nil
+        }
+
+        guard let axElement = focusedElement() else {
+            return nil
+        }
+        return context(for: axElement)
+    }
+
     /// Attempts to read the currently selected text from the focused UI element
     /// using the Accessibility API.  Returns `nil` if no text is selected, the
     /// element is a secure text field, or permission is not granted.
@@ -57,32 +77,17 @@ final class AccessibilityHelper {
             return nil
         }
 
-        let systemWide = AXUIElementCreateSystemWide()
-
-        // 1. Get the focused element.
-        var focusedElement: AnyObject?
-        let focusResult = AXUIElementCopyAttributeValue(
-            systemWide,
-            kAXFocusedUIElementAttribute as CFString,
-            &focusedElement
-        )
-
-        guard focusResult == .success, let element = focusedElement else {
-            logger.warning("Could not get focused element: \(focusResult.rawValue)")
+        guard let axElement = focusedElement() else {
             return nil
         }
 
-        let axElement = element as! AXUIElement
-
-        // 2. Reject secure text fields (password fields).
-        var roleValue: AnyObject?
-        AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute as CFString, &roleValue)
-        if let role = roleValue as? String, role == "AXSecureTextField" {
+        let context = context(for: axElement)
+        if context.isSecure {
             logger.warning("Focused element is a secure text field, cannot read selection")
             return nil
         }
 
-        // 3. Read the selected text attribute.
+        // Read the selected text attribute.
         var selectedTextValue: AnyObject?
         let textResult = AXUIElementCopyAttributeValue(
             axElement,
@@ -101,30 +106,65 @@ final class AccessibilityHelper {
         return text
     }
 
-    // MARK: - Secure Text Field Detection
+    // MARK: - Internals
 
-    /// Returns `true` if the currently focused element is a secure (password)
-    /// text field, meaning we must not attempt to read its contents.
-    static func isSecureTextField() -> Bool {
+    private static func focusedElement() -> AXUIElement? {
         let systemWide = AXUIElementCreateSystemWide()
-
-        var focusedElement: AnyObject?
-        let result = AXUIElementCopyAttributeValue(
+        var focusedElementValue: AnyObject?
+        let status = AXUIElementCopyAttributeValue(
             systemWide,
             kAXFocusedUIElementAttribute as CFString,
-            &focusedElement
+            &focusedElementValue
         )
-
-        guard result == .success, let element = focusedElement else {
-            return false
+        guard status == .success, let focused = focusedElementValue else {
+            logger.warning("Could not get focused element: \(status.rawValue)")
+            return nil
         }
+        return (focused as! AXUIElement)
+    }
 
-        var roleValue: AnyObject?
-        AXUIElementCopyAttributeValue(
-            element as! AXUIElement,
-            kAXRoleAttribute as CFString,
-            &roleValue
+    private static func context(for element: AXUIElement) -> FocusedElementContext {
+        let role = attributeString(kAXRoleAttribute as CFString, from: element)
+        let isSecure = (role == "AXSecureTextField")
+
+        let editableFromAX = attributeBool("AXEditable" as CFString, from: element)
+        let editableByRole: Bool? = {
+            guard let role else { return nil }
+            let editableRoles: Set<String> = [
+                "AXTextField",
+                "AXTextArea",
+                "AXSearchField",
+                "AXTextView",
+                "AXComboBox",
+            ]
+            return editableRoles.contains(role)
+        }()
+
+        return FocusedElementContext(
+            isSecure: isSecure,
+            isEditableTextInput: editableFromAX ?? editableByRole,
+            role: role
         )
-        return (roleValue as? String) == "AXSecureTextField"
+    }
+
+    private static func attributeString(_ name: CFString, from element: AXUIElement) -> String? {
+        var value: AnyObject?
+        let status = AXUIElementCopyAttributeValue(element, name, &value)
+        guard status == .success else {
+            return nil
+        }
+        return value as? String
+    }
+
+    private static func attributeBool(_ name: CFString, from element: AXUIElement) -> Bool? {
+        var value: AnyObject?
+        let status = AXUIElementCopyAttributeValue(element, name, &value)
+        guard status == .success else {
+            return nil
+        }
+        if let number = value as? NSNumber {
+            return number.boolValue
+        }
+        return nil
     }
 }

@@ -1,6 +1,6 @@
 # TranslateAnywhere
 
-A macOS menu-bar application that translates between Russian and English via a global hotkey. Select text in any application, press the hotkey, and the selected text is replaced with the translation -- all without leaving your current window.
+A macOS menu-bar application that translates between Russian and English via a global hotkey. Select text in any application, press the hotkey, and TranslateAnywhere either replaces the selected text (editable fields) or shows a small popup with the translation (non-editable selections).
 
 TranslateAnywhere runs entirely offline using OPUS-MT models through CTranslate2, with an optional Ollama backend for LLM-based translation.
 
@@ -8,11 +8,12 @@ TranslateAnywhere runs entirely offline using OPUS-MT models through CTranslate2
 
 - **Offline OPUS-MT translation** -- Helsinki-NLP OPUS-MT models run locally via CTranslate2 and SentencePiece. No internet required.
 - **Configurable global hotkey** -- Default Ctrl+Option+T. Change it to any combination that includes Control or Command.
-- **Direct in-place replacement** -- The selected text is replaced with the translation directly in the source application via simulated Cmd+V.
+- **Context-aware output** -- In editable text inputs, the selected text is replaced in-place via simulated Cmd+V. In non-editable contexts (e.g., selected webpage text), translation appears in a small popup near the cursor.
 - **Auto-detect direction** -- Automatically determines whether the selected text is Russian or English and translates in the correct direction.
 - **Ollama backend option** -- Switch to an Ollama-powered LLM backend for translation when preferred.
 - **Clipboard preservation** -- Saves and restores your clipboard contents around the capture/replace cycle.
 - **Accessibility API fallback** -- Falls back to the macOS Accessibility API when clipboard-based text capture is unavailable (secure input mode, non-standard text fields).
+- **Lower-latency hotkey pipeline** -- Reduced capture/paste wait overhead, startup model warmup, and CPU thread auto-tuning improve responsiveness while preserving translation quality settings.
 
 ## Requirements
 
@@ -133,7 +134,7 @@ Packages the built application into a distributable `.dmg` disk image in the `di
 4. Rust resolves auto-detect direction via `tc_is_russian` (Cyrillic character ratio analysis).
 5. Rust calls into the C++ wrapper (`cpp_translate`), which loads CTranslate2 models lazily and runs SentencePiece tokenization + CTranslate2 inference.
 6. The translated UTF-8 string is returned back up through the C ABI.
-7. `SelectionCapture` replaces the selected text in-place via simulated Cmd+V.
+7. If the focused context is editable, `SelectionCapture` replaces the selected text in-place via simulated Cmd+V. Otherwise, a transient popup is shown near the cursor with the translated text.
 
 ## Repository Layout
 
@@ -204,6 +205,7 @@ MODELS_DIR=/path/to/models cargo test --manifest-path Core/translator_core/Cargo
 4. Select the text and press Ctrl+Option+T.
 5. Verify that the text is replaced with a Russian translation.
 6. Select the Russian text, press the hotkey again, and verify it is replaced with English.
+7. Select non-editable text in a webpage (or other read-only UI) and press the hotkey; verify a small popup appears near the cursor with the translation.
 
 ## Configuration
 
@@ -259,7 +261,7 @@ The trigger hotkey can be changed to any combination that includes at least Cont
 
 ## Edge Cases Handled
 
-1. **Empty selection** -- If no text is selected when the hotkey is pressed, the app does nothing gracefully.
+1. **Empty selection** -- If no text is selected when the hotkey is pressed, translation is skipped and a system beep is played.
 2. **Secure input mode** -- When macOS secure input is active (e.g., password fields), the app skips clipboard capture entirely and uses only the Accessibility API fallback, which correctly refuses to read secure text fields.
 3. **Clipboard preservation** -- The user's clipboard contents (including images, RTF, and file references -- not just plain text) are saved before capture and restored afterward when the "Restore clipboard" preference is enabled.
 4. **Mutex poisoning recovery** -- If the translation thread panics, the Rust mutex is recovered via `poisoned.into_inner()` rather than propagating the panic.

@@ -57,6 +57,18 @@ enum TranslateStatus: Int32 {
     case invalidInput    = 5
 }
 
+// MARK: - Capture Result
+
+enum TranslationOutputMode: Sendable {
+    case replaceSelection
+    case showPopup
+}
+
+struct CaptureResult: Sendable {
+    let text: String
+    let outputMode: TranslationOutputMode
+}
+
 // MARK: - UserDefaults Keys
 
 enum UDKey {
@@ -100,6 +112,12 @@ enum AppConstants {
     static let modelSubdirRuEn  = "opus-mt-ru-en"
     static let maxInputChars    = 8000
     static let clipboardTimeout: TimeInterval = 0.5  // 500ms
+    static let clipboardPollInterval: TimeInterval = 0.008 // 8ms
+    static let keyEventIntervalNs: UInt64 = 12_000_000
+    static let prePasteDelayNs: UInt64 = 15_000_000
+    static let postPasteWaitNs: UInt64 = 90_000_000
+    static let clipboardRestoreAfterPasteNs: UInt64 = 140_000_000
+    static let popupAutoHideSeconds: TimeInterval = 4.0
     static let defaultHotkeyKeyCode: UInt32   = 17   // "t"
     static let defaultHotkeyModifiers: UInt32 = 0x0900 // Ctrl+Option
 }

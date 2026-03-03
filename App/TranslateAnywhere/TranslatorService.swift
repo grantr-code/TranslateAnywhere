@@ -26,6 +26,7 @@ final class TranslatorService: @unchecked Sendable {
 
     private let logger = Logger(subsystem: "com.translateanywhere.app", category: "Translator")
     private var isInitialized = false
+    private var didRunWarmup = false
     private let queue = DispatchQueue(label: "com.translateanywhere.translator", qos: .userInitiated)
 
     // MARK: - Lifecycle
@@ -40,20 +41,38 @@ final class TranslatorService: @unchecked Sendable {
 
         let modelPath = resourcePath + "/models"
         logger.info("Initializing translator core with model path: \(modelPath)")
+        let threadCount = preferredThreadCount()
 
         let utf8 = Array(modelPath.utf8)
         let result: Int32 = utf8.withUnsafeBufferPointer { buf in
             guard let base = buf.baseAddress else { return Int32(-1) }
-            return bridge_tc_init(base, UInt32(buf.count), 0)
+            return bridge_tc_init(base, UInt32(buf.count), threadCount)
         }
 
         if result == 0 {
             isInitialized = true
-            logger.info("Translator core initialized successfully")
+            logger.info("Translator core initialized successfully (threads=\(threadCount))")
         } else {
             logger.error("Translator core init failed with code \(result)")
         }
         return result == 0
+    }
+
+    /// Pre-load both local translation directions so first real hotkey press
+    /// does not pay model load latency.
+    func warmupLocalModels() async {
+        guard isInitialized else { return }
+        guard !didRunWarmup else { return }
+        didRunWarmup = true
+
+        logger.info("Starting local model warmup")
+        let startedAt = DispatchTime.now().uptimeNanoseconds
+
+        _ = await translateLocal(text: "Warmup hello", direction: .enToRu)
+        _ = await translateLocal(text: "Разогрев", direction: .ruToEn)
+
+        let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000.0
+        logger.info("Local model warmup finished in \(elapsedMs, format: .fixed(precision: 1)) ms")
     }
 
     // MARK: - Translation
@@ -87,6 +106,12 @@ final class TranslatorService: @unchecked Sendable {
     }
 
     // MARK: - Local Backend
+
+    private func preferredThreadCount() -> Int32 {
+        let active = ProcessInfo.processInfo.activeProcessorCount
+        let clamped = max(1, min(active, 12))
+        return Int32(clamped)
+    }
 
     private func translateLocal(text: String, direction: TranslateDirection) async -> TranslationResult {
         logger.info("Translating locally: direction=\(direction.label), len=\(text.count)")

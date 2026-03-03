@@ -102,7 +102,7 @@ final class HotkeyManager {
         unregister()
 
         var hotKeyRef: EventHotKeyRef?
-        var hotKeyID = kHotkeyID
+        let hotKeyID = kHotkeyID
 
         let status = RegisterEventHotKey(keyCode,
                                           modifiers,

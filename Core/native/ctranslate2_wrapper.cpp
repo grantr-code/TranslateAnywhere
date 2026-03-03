@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -69,7 +70,11 @@ bool load_model(ModelPair& model, const std::string& model_dir, int threads) {
         }
 
         // Load CTranslate2 model
-        int intra_threads = (threads > 0) ? threads : 4;
+        int intra_threads = threads;
+        if (intra_threads <= 0) {
+            auto hw_threads = std::thread::hardware_concurrency();
+            intra_threads = (hw_threads > 0) ? static_cast<int>(hw_threads) : 1;
+        }
         ctranslate2::ReplicaPoolConfig pool_config;
         pool_config.num_threads_per_replica = intra_threads;
 

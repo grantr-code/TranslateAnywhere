@@ -22,7 +22,6 @@ extern "C" {
 /// Errors that can occur during translation.
 #[derive(Debug)]
 pub enum TranslateError {
-    NotInitialized,
     ModelNotFound,
     EncodingError,
     TranslationFailed(String),
@@ -32,7 +31,7 @@ pub enum TranslateError {
 /// Manages model directory paths and thread configuration.
 /// The actual CTranslate2 models are loaded lazily on the C++ side.
 pub struct Translator {
-    model_base_dir: PathBuf,
+    model_base_dir_cstr: CString,
     threads: i32,
 }
 
@@ -43,6 +42,13 @@ impl Translator {
     /// Does not load models — that happens lazily on first translation.
     pub fn new(model_base_dir: &str, threads: i32) -> Result<Self, TranslateError> {
         let path = PathBuf::from(model_base_dir);
+        let model_base_dir_cstr = CString::new(model_base_dir).map_err(|e| {
+            eprintln!(
+                "[translator_core] Failed to create CString from model_base_dir: {}",
+                e
+            );
+            TranslateError::EncodingError
+        })?;
 
         // Verify model directories exist
         let en_ru = path.join("opus-mt-en-ru");
@@ -70,7 +76,7 @@ impl Translator {
         );
 
         Ok(Translator {
-            model_base_dir: path,
+            model_base_dir_cstr,
             threads,
         })
     }
@@ -101,27 +107,11 @@ impl Translator {
             TranslateError::EncodingError
         })?;
 
-        let dir_str = self
-            .model_base_dir
-            .to_str()
-            .ok_or_else(|| {
-                eprintln!("[translator_core] model_base_dir is not valid UTF-8");
-                TranslateError::EncodingError
-            })?;
-
-        let dir_cstr = CString::new(dir_str).map_err(|e| {
-            eprintln!(
-                "[translator_core] Failed to create CString from model_base_dir: {}",
-                e
-            );
-            TranslateError::EncodingError
-        })?;
-
         // Call into C++ wrapper
         let result_ptr = unsafe {
             cpp_translate(
                 input_cstr.as_ptr(),
-                dir_cstr.as_ptr(),
+                self.model_base_dir_cstr.as_ptr(),
                 direction as c_int,
                 self.threads as c_int,
             )
