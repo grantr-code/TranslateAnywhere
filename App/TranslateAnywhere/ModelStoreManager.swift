@@ -378,11 +378,11 @@ actor ModelStoreManager {
         postDownloadProgressChanged(modelId)
 
         do {
-            let token = try requireHuggingFaceToken()
             let manifest = try await loadManifest(requireRemote: true)
             guard let entry = manifestEntry(for: modelId, in: manifest) else {
                 throw ModelStoreError.manifestEntryMissing(modelId: modelId.rawValue)
             }
+            let token = currentHuggingFaceToken()
 
             try purgeInvalidExistingModelIfNeeded(modelId, entry: entry)
 
@@ -421,7 +421,7 @@ actor ModelStoreManager {
 
     private func installModelFiles(_ modelId: LocalModelID,
                                    entry: ModelManifestEntry,
-                                   token: String) async throws {
+                                   token: String?) async throws {
         let tempInstallURL = downloadsRootURL
             .appendingPathComponent("\(modelId.rawValue)-\(UUID().uuidString)", isDirectory: true)
 
@@ -481,10 +481,12 @@ actor ModelStoreManager {
     }
 
     private func downloadFile(from url: URL,
-                              token: String,
+                              token: String?,
                               path: String) async throws -> (URL, HTTPURLResponse) {
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let token, !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         let (tmpDownloadURL, response) = try await URLSession.shared.download(for: request)
 
         guard let http = response as? HTTPURLResponse else {
@@ -564,9 +566,10 @@ actor ModelStoreManager {
             throw ModelStoreError.invalidManifestURL
         }
 
-        let token = try requireHuggingFaceToken()
         var request = URLRequest(url: remoteURL)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let token = currentHuggingFaceToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -636,12 +639,9 @@ actor ModelStoreManager {
         }
     }
 
-    private func requireHuggingFaceToken() throws -> String {
+    private func currentHuggingFaceToken() -> String? {
         let token = HuggingFaceTokenStore.loadToken()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !token.isEmpty else {
-            throw ModelStoreError.tokenMissing
-        }
-        return token
+        return token.isEmpty ? nil : token
     }
 
     private func shouldRetryAfterPurge(error: Error) -> Bool {

@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "models": [
+    {
+      "id": "opus_base",
+      "family": "opus",
+      "version": "2",
+      "files": [
+        {
+          "path": "opus-mt-en-ru/config.json",
+          "url": "https://huggingface.co/manancode/opus-mt-en-ru-ctranslate2-android/resolve/main/config.json",
+          "sha256": "8f6496adfc930cbfecbe8281112197705c488fab47d34b4829b06d7f478909af",
+          "size_bytes": 223
+        },
+        {
+          "path": "opus-mt-en-ru/model.bin",
+          "url": "https://huggingface.co/manancode/opus-mt-en-ru-ctranslate2-android/resolve/main/model.bin",
+          "sha256": "f5ae1da30bcb61e877c549be8fb5a434193893eb97509ccd0b954465f9a8f80c",
+          "size_bytes": 78276475
+        },
+        {
+          "path": "opus-mt-en-ru/shared_vocabulary.json",
+          "url": "https://huggingface.co/manancode/opus-mt-en-ru-ctranslate2-android/resolve/main/shared_vocabulary.json",
+          "sha256": "bf1812383ed402163a2ed1b553e175e7db96a54ed68b6c15566018fdf945ed99",
+          "size_bytes": 2300269
+        },
+        {
+          "path": "opus-mt-en-ru/source.spm",
+          "url": "https://huggingface.co/manancode/opus-mt-en-ru-ctranslate2-android/resolve/main/source.spm",
+          "sha256": "16bebef1389a0b8ab452772c4e35b9e605e5713f8ac7baa71ca701394eaa086d",
+          "size_bytes": 802781
+        },
+        {
+          "path": "opus-mt-en-ru/target.spm",
+          "url": "https://huggingface.co/manancode/opus-mt-en-ru-ctranslate2-android/resolve/main/target.spm",
+          "sha256": "745998e51ba5b058e38b7ac7765c25c43ed5c1c39cc92b27163b9b2e323c9d7c",
+          "size_bytes": 1080169
+        },
+        {
+          "path": "opus-mt-ru-en/config.json",
+          "url": "https://huggingface.co/manancode/opus-mt-ru-en-ctranslate2-android/resolve/main/config.json",
+          "sha256": "8f6496adfc930cbfecbe8281112197705c488fab47d34b4829b06d7f478909af",
+          "size_bytes": 223
+        },
+        {
+          "path": "opus-mt-ru-en/model.bin",
+          "url": "https://huggingface.co/manancode/opus-mt-ru-en-ctranslate2-android/resolve/main/model.bin",
+          "sha256": "0efde44155f1d73b07d81bae640d9cca79657c6ade8e338d0862e34c30ffeee9",
+          "size_bytes": 78276475
+        },
+        {
+          "path": "opus-mt-ru-en/shared_vocabulary.json",
+          "url": "https://huggingface.co/manancode/opus-mt-ru-en-ctranslate2-android/resolve/main/shared_vocabulary.json",
+          "sha256": "bf1812383ed402163a2ed1b553e175e7db96a54ed68b6c15566018fdf945ed99",
+          "size_bytes": 2300269
+        },
+        {
+          "path": "opus-mt-ru-en/source.spm",
+          "url": "https://huggingface.co/manancode/opus-mt-ru-en-ctranslate2-android/resolve/main/source.spm",
+          "sha256": "745998e51ba5b058e38b7ac7765c25c43ed5c1c39cc92b27163b9b2e323c9d7c",
+          "size_bytes": 1080169
+        },
+        {
+          "path": "opus-mt-ru-en/target.spm",
+          "url": "https://huggingface.co/manancode/opus-mt-ru-en-ctranslate2-android/resolve/main/target.spm",
+          "sha256": "16bebef1389a0b8ab452772c4e35b9e605e5713f8ac7baa71ca701394eaa086d",
+          "size_bytes": 802781
+        }
+      ]
+    },
+    {
+      "id": "opus_big",
+      "family": "opus",
+      "version": "2",
+      "files": [
+        {
+          "path": "opus-mt-en-zle/config.json",
+          "url": "https://huggingface.co/manancode/opus-mt-en-zle-ctranslate2-android/resolve/main/config.json",
+          "sha256": "8f6496adfc930cbfecbe8281112197705c488fab47d34b4829b06d7f478909af",
+          "size_bytes": 223
+        },
+        {
+          "path": "opus-mt-en-zle/model.bin",
+          "url": "https://huggingface.co/manancode/opus-mt-en-zle-ctranslate2-android/resolve/main/model.bin",
+          "sha256": "9f63d54733e0aef0e1af3791d54937085f33e7e833d33ed136309d8202685692",
+          "size_bytes": 77801715
+        },
+        {
+          "path": "opus-mt-en-zle/shared_vocabulary.json",
+          "url": "https://huggingface.co/manancode/opus-mt-en-zle-ctranslate2-android/resolve/main/shared_vocabulary.json",
+          "sha256": "bb64fa3ec2b50f0a7b9702050fa3d336d20970f5d75ce74c1e83ee91ff169867",
+          "size_bytes": 2129602
+        },
+        {
+          "path": "opus-mt-en-zle/source.spm",
+          "url": "https://huggingface.co/manancode/opus-mt-en-zle-ctranslate2-android/resolve/main/source.spm",
+          "sha256": "c23c378cca261f48921577aab1cc45f0189c623f8508ab145f860275f2a0e767",
+          "size_bytes": 808192
+        },
+        {
+          "path": "opus-mt-en-zle/target.spm",
+          "url": "https://huggingface.co/manancode/opus-mt-en-zle-ctranslate2-android/resolve/main/target.spm",
+          "sha256": "70818e360bb4e784c5a035d87b4d6eb97e9f93ce45993b33371f4cedce5b955c",
+          "size_bytes": 1028518
+        },
+        {
+          "path": "opus-mt-zle-en/config.json",
+          "url": "https://huggingface.co/manancode/opus-mt-zle-en-ctranslate2-android/resolve/main/config.json",
+          "sha256": "8f6496adfc930cbfecbe8281112197705c488fab47d34b4829b06d7f478909af",
+          "size_bytes": 223
+        },
+        {
+          "path": "opus-mt-zle-en/model.bin",
+          "url": "https://huggingface.co/manancode/opus-mt-zle-en-ctranslate2-android/resolve/main/model.bin",
+          "sha256": "4565331caf870e0ea7e4becf22baf320c6d16f5da1a99547789b9b6e65a9bd3c",
+          "size_bytes": 77793915
+        },
+        {
+          "path": "opus-mt-zle-en/shared_vocabulary.json",
+          "url": "https://huggingface.co/manancode/opus-mt-zle-en-ctranslate2-android/resolve/main/shared_vocabulary.json",
+          "sha256": "378e242eab9991babd3f24245e577e70c437b554bff67c7aae0a0315735dd112",
+          "size_bytes": 2129064
+        },
+        {
+          "path": "opus-mt-zle-en/source.spm",
+          "url": "https://huggingface.co/manancode/opus-mt-zle-en-ctranslate2-android/resolve/main/source.spm",
+          "sha256": "76718a3cca6e8b87ade4e39c7d323b66faf91988882a7555c50dfd3363856fe0",
+          "size_bytes": 1028478
+        },
+        {
+          "path": "opus-mt-zle-en/target.spm",
+          "url": "https://huggingface.co/manancode/opus-mt-zle-en-ctranslate2-android/resolve/main/target.spm",
+          "sha256": "9b43bb4ea73cb097c18fb546ea57e7488b6b9fa57cf3af34a6f5f38bb953aedc",
+          "size_bytes": 808297
+        }
+      ]
+    },
+    {
+      "id": "nllb_1_3b",
+      "family": "nllb",
+      "version": "2",
+      "files": [
+        {
+          "path": "config.json",
+          "url": "https://huggingface.co/KomorebiAI/nllb-200-1.3B-int8-ct2/resolve/main/config.json",
+          "sha256": "4244772990e30069563e3ddfb4ad6dc95bdfd2ac3de667ea8858c9b0a8433fa8",
+          "size_bytes": 189
+        },
+        {
+          "path": "model.bin",
+          "url": "https://huggingface.co/KomorebiAI/nllb-200-1.3B-int8-ct2/resolve/main/model.bin",
+          "sha256": "9c1d88cb3a68abab435e5ea5b50fa3874da8e6c5f1f4256e9bc1a242f57604c4",
+          "size_bytes": 1381827162
+        },
+        {
+          "path": "sentencepiece.bpe.model",
+          "url": "https://huggingface.co/KomorebiAI/nllb-200-1.3B-int8-ct2/resolve/main/sentencepiece.bpe.model",
+          "sha256": "14bb8dfb35c0ffdea7bc01e56cea38b9e3d5efcdcb9c251d6b40538e1aab555a",
+          "size_bytes": 4852054
+        },
+        {
+          "path": "shared_vocabulary.json",
+          "url": "https://huggingface.co/KomorebiAI/nllb-200-1.3B-int8-ct2/resolve/main/shared_vocabulary.json",
+          "sha256": "af53bfd0e6f726209e7325e45b87ab3b14e5856f7d42d7b9be91de3287c45267",
+          "size_bytes": 5921176
+        }
+      ]
+    },
+    {
+      "id": "nllb_3_3b",
+      "family": "nllb",
+      "version": "2",
+      "files": [
+        {
+          "path": "config.json",
+          "url": "https://huggingface.co/KomorebiAI/nllb-200-3.3B-int8-ct2/resolve/main/config.json",
+          "sha256": "4244772990e30069563e3ddfb4ad6dc95bdfd2ac3de667ea8858c9b0a8433fa8",
+          "size_bytes": 189
+        },
+        {
+          "path": "model.bin",
+          "url": "https://huggingface.co/KomorebiAI/nllb-200-3.3B-int8-ct2/resolve/main/model.bin",
+          "sha256": "f54d28edc415c7012b59589faca916ee53c52db09858a49a7e58849ae18e32d2",
+          "size_bytes": 3363404378
+        },
+        {
+          "path": "sentencepiece.bpe.model",
+          "url": "https://huggingface.co/KomorebiAI/nllb-200-3.3B-int8-ct2/resolve/main/sentencepiece.bpe.model",
+          "sha256": "14bb8dfb35c0ffdea7bc01e56cea38b9e3d5efcdcb9c251d6b40538e1aab555a",
+          "size_bytes": 4852054
+        },
+        {
+          "path": "shared_vocabulary.json",
+          "url": "https://huggingface.co/KomorebiAI/nllb-200-3.3B-int8-ct2/resolve/main/shared_vocabulary.json",
+          "sha256": "af53bfd0e6f726209e7325e45b87ab3b14e5856f7d42d7b9be91de3287c45267",
+          "size_bytes": 5921176
+        }
+      ]
+    }
+  ]
+}

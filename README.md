@@ -108,6 +108,10 @@ Validates artifact files against checksums in `manifest-v1.json`.
 ./scripts/verify_model_artifacts.sh dist/model-artifacts
 ```
 
+### `manifests/manifest-v1.json`
+
+Published runtime manifest consumed by the app. It currently references external Hugging Face model repositories (OPUS and NLLB CT2 assets) with per-file SHA-256 checksums and sizes.
+
 ## Architecture
 
 ```
