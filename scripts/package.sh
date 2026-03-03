@@ -13,11 +13,21 @@ echo "[1/4] Building third-party (if needed)..."
 echo "[2/4] Building core (Release)..."
 "$SCRIPT_DIR/build_core_universal.sh"
 
-echo "[3/4] Building app (Release, universal2)..."
+echo "[3/4] Building app (Release)..."
+# Build for architectures available in the Rust staticlib
+RUST_LIB="$ROOT/build/lib/libtranslator_core.a"
+ARCHS=$(lipo -archs "$RUST_LIB" 2>/dev/null || echo "x86_64")
+
+ARCH_FLAGS=""
+for arch in $ARCHS; do
+    ARCH_FLAGS="$ARCH_FLAGS -arch $arch"
+done
+
+echo "  Building for: $ARCHS"
 xcodebuild -project "$ROOT/App/TranslateAnywhere.xcodeproj" \
     -scheme TranslateAnywhere \
     -configuration Release \
-    -arch arm64 -arch x86_64 \
+    $ARCH_FLAGS \
     ONLY_ACTIVE_ARCH=NO \
     build
 
