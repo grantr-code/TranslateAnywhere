@@ -183,4 +183,5 @@ enum AppConstants {
     static let defaultHotkeyKeyCode: UInt32   = 17   // "t"
     static let defaultHotkeyModifiers: UInt32 = 0x0900 // Ctrl+Option
     static let modelsManifestURL = "https://huggingface.co/grantr-code/translateanywhere-models/resolve/main/manifest-v1.json"
+    static let modelsArtifactsBaseURL = "https://huggingface.co/grantr-code/translateanywhere-models/resolve/main"
 }

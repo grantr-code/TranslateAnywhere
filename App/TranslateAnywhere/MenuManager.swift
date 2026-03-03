@@ -49,6 +49,7 @@ final class MenuManager: NSObject {
 
         let settings = SettingsManager.shared
         let modelStatuses = await ModelStoreManager.shared.allStatuses()
+        let hasHFToken = await ModelStoreManager.shared.hasConfiguredHuggingFaceToken()
 
         // ── Translate Selection Now ──
         let translateItem = NSMenuItem(title: "Translate Selection Now",
@@ -119,6 +120,26 @@ final class MenuManager: NSObject {
         }
         activeModelItem.submenu = activeModelSubmenu
         modelsSubmenu.addItem(activeModelItem)
+
+        modelsSubmenu.addItem(.separator())
+
+        let tokenStatusTitle = hasHFToken ? "Hugging Face Token: Configured" : "Hugging Face Token: Missing"
+        let tokenStatus = NSMenuItem(title: tokenStatusTitle, action: nil, keyEquivalent: "")
+        tokenStatus.isEnabled = false
+        modelsSubmenu.addItem(tokenStatus)
+
+        let configureToken = NSMenuItem(title: "Configure Hugging Face Token…",
+                                        action: #selector(configureHuggingFaceToken),
+                                        keyEquivalent: "")
+        configureToken.target = self
+        modelsSubmenu.addItem(configureToken)
+
+        let clearToken = NSMenuItem(title: "Clear Hugging Face Token",
+                                    action: #selector(clearHuggingFaceToken),
+                                    keyEquivalent: "")
+        clearToken.target = self
+        clearToken.isEnabled = hasHFToken
+        modelsSubmenu.addItem(clearToken)
 
         modelsSubmenu.addItem(.separator())
 
@@ -210,10 +231,24 @@ final class MenuManager: NSObject {
             let p = Int((status.progress * 100).rounded())
             return "\(model.label): Downloading \(p)%"
         case .failed:
+            if let short = compactError(status.lastError) {
+                return "Retry \(model.label) (\(short))"
+            }
             return "Retry \(model.label) (Failed)"
         case .notInstalled:
             return "Download \(model.label)"
         }
+    }
+
+    private func compactError(_ message: String?) -> String? {
+        guard let message else { return nil }
+        let normalized = message.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+        if normalized.count <= 54 {
+            return normalized
+        }
+        let idx = normalized.index(normalized.startIndex, offsetBy: 54)
+        return "\(normalized[..<idx])…"
     }
 
     // MARK: - Actions
@@ -303,6 +338,85 @@ final class MenuManager: NSObject {
         }
         logger.info("Menu: Download all models requested")
         buildMenu()
+    }
+
+    @objc private func configureHuggingFaceToken() {
+        let alert = NSAlert()
+        alert.messageText = "Configure Hugging Face Token"
+        alert.informativeText = "Enter a Hugging Face token with read access to the private model repository."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+
+        let tokenField = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        tokenField.placeholderString = "hf_..."
+        alert.accessoryView = tokenField
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else {
+            return
+        }
+
+        let token = tokenField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty else {
+            let invalid = NSAlert()
+            invalid.messageText = "Token Required"
+            invalid.informativeText = "Please enter a non-empty Hugging Face token."
+            invalid.alertStyle = .warning
+            invalid.addButton(withTitle: "OK")
+            invalid.runModal()
+            return
+        }
+
+        Task {
+            let error = await ModelStoreManager.shared.saveHuggingFaceToken(token)
+            await MainActor.run {
+                if let error {
+                    let fail = NSAlert()
+                    fail.messageText = "Token Save Failed"
+                    fail.informativeText = error
+                    fail.alertStyle = .warning
+                    fail.addButton(withTitle: "OK")
+                    fail.runModal()
+                } else {
+                    let ok = NSAlert()
+                    ok.messageText = "Token Saved"
+                    ok.informativeText = "Model downloads are now authenticated."
+                    ok.alertStyle = .informational
+                    ok.addButton(withTitle: "OK")
+                    ok.runModal()
+                }
+                self.buildMenu()
+            }
+        }
+    }
+
+    @objc private func clearHuggingFaceToken() {
+        let confirm = NSAlert()
+        confirm.messageText = "Clear Hugging Face Token?"
+        confirm.informativeText = "Model downloads from the private repository will fail until a new token is configured."
+        confirm.alertStyle = .warning
+        confirm.addButton(withTitle: "Clear")
+        confirm.addButton(withTitle: "Cancel")
+
+        guard confirm.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+
+        Task {
+            let error = await ModelStoreManager.shared.clearHuggingFaceToken()
+            await MainActor.run {
+                if let error {
+                    let fail = NSAlert()
+                    fail.messageText = "Failed to Clear Token"
+                    fail.informativeText = error
+                    fail.alertStyle = .warning
+                    fail.addButton(withTitle: "OK")
+                    fail.runModal()
+                }
+                self.buildMenu()
+            }
+        }
     }
 
     @objc private func toggleRestoreClipboard(_ sender: NSMenuItem) {

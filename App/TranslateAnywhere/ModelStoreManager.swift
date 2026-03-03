@@ -9,6 +9,7 @@
 import Foundation
 import CryptoKit
 import os.log
+import Security
 
 struct LocalModelStatus: Sendable {
     let state: ModelInstallState
@@ -47,6 +48,144 @@ private struct ModelManifestFile: Codable {
     }
 }
 
+private enum ModelStoreError: LocalizedError {
+    case tokenMissing
+    case invalidManifestURL
+    case invalidModelBaseURL
+    case manifestHttpError(status: Int)
+    case manifestDecodeFailed
+    case manifestValidationFailed(reason: String)
+    case manifestEntryMissing(modelId: String)
+    case downloadHttpError(status: Int, path: String)
+    case invalidHttpResponse(path: String)
+    case requiredFileMissing(path: String)
+    case requiredFileSizeMissing(path: String)
+    case requiredFileChecksumMissing(path: String)
+    case fileSizeMismatch(path: String, expected: UInt64, actual: UInt64)
+    case checksumMismatch(path: String)
+    case keychainError(message: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .tokenMissing:
+            return "Hugging Face token required. Configure it from Models > Configure Hugging Face Token…"
+        case .invalidManifestURL:
+            return "Invalid remote manifest URL."
+        case .invalidModelBaseURL:
+            return "Invalid model artifact base URL."
+        case .manifestHttpError(let status):
+            if status == 401 || status == 403 {
+                return "Hugging Face authentication failed (HTTP \(status)). Check your token permissions."
+            }
+            return "Manifest download failed (HTTP \(status))."
+        case .manifestDecodeFailed:
+            return "Manifest format is invalid."
+        case .manifestValidationFailed(let reason):
+            return "Manifest is missing required metadata: \(reason)"
+        case .manifestEntryMissing(let modelId):
+            return "Manifest entry missing for model \(modelId)."
+        case .downloadHttpError(let status, let path):
+            if status == 401 || status == 403 {
+                return "Authentication failed while downloading \(path) (HTTP \(status))."
+            }
+            return "Download failed for \(path) (HTTP \(status))."
+        case .invalidHttpResponse(let path):
+            return "Download returned invalid response for \(path)."
+        case .requiredFileMissing(let path):
+            return "Installed model is incomplete: missing \(path)."
+        case .requiredFileSizeMissing(let path):
+            return "Manifest missing size for \(path)."
+        case .requiredFileChecksumMissing(let path):
+            return "Manifest missing checksum for \(path)."
+        case .fileSizeMismatch(let path, let expected, let actual):
+            return "File size mismatch for \(path) (expected \(expected), got \(actual))."
+        case .checksumMismatch(let path):
+            return "Checksum mismatch for \(path)."
+        case .keychainError(let message):
+            return "Could not access Keychain: \(message)"
+        }
+    }
+}
+
+private enum HuggingFaceTokenStore {
+    private static let service = "com.translateanywhere.app"
+    private static let account = "huggingface_read_token"
+
+    static func loadToken() -> String? {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: account,
+            kSecReturnData: true,
+            kSecMatchLimit: kSecMatchLimitOne,
+        ]
+
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        guard status == errSecSuccess else {
+            return nil
+        }
+        guard let data = item as? Data else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func saveToken(_ token: String) throws {
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw ModelStoreError.tokenMissing
+        }
+        guard let data = trimmed.data(using: .utf8) else {
+            throw ModelStoreError.keychainError(message: "Token encoding failed.")
+        }
+
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: account,
+        ]
+
+        let attrs: [CFString: Any] = [
+            kSecValueData: data,
+        ]
+
+        let updateStatus = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+        if updateStatus == errSecSuccess {
+            return
+        }
+
+        if updateStatus == errSecItemNotFound {
+            var add = query
+            add[kSecValueData] = data
+            let addStatus = SecItemAdd(add as CFDictionary, nil)
+            guard addStatus == errSecSuccess else {
+                throw ModelStoreError.keychainError(message: keychainMessage(for: addStatus))
+            }
+            return
+        }
+
+        throw ModelStoreError.keychainError(message: keychainMessage(for: updateStatus))
+    }
+
+    static func clearToken() throws {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: account,
+        ]
+
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw ModelStoreError.keychainError(message: keychainMessage(for: status))
+        }
+    }
+
+    private static func keychainMessage(for status: OSStatus) -> String {
+        (SecCopyErrorMessageString(status, nil) as String?) ?? "OSStatus \(status)"
+    }
+}
+
 actor ModelStoreManager {
 
     static let shared = ModelStoreManager()
@@ -65,6 +204,7 @@ actor ModelStoreManager {
     private let appSupportURL: URL
     private let modelsRootURL: URL
     private let downloadsRootURL: URL
+    private let manifestCacheURL: URL
 
     private init() {
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -72,13 +212,14 @@ actor ModelStoreManager {
         self.appSupportURL = base
         self.modelsRootURL = base.appendingPathComponent("models", isDirectory: true)
         self.downloadsRootURL = base.appendingPathComponent("downloads", isDirectory: true)
+        self.manifestCacheURL = base.appendingPathComponent("manifest-v1.json", isDirectory: false)
 
         do {
             try fm.createDirectory(at: appSupportURL, withIntermediateDirectories: true)
             try fm.createDirectory(at: modelsRootURL, withIntermediateDirectories: true)
             try fm.createDirectory(at: downloadsRootURL, withIntermediateDirectories: true)
         } catch {
-            logger.error("Failed to create model storage directories: \(error.localizedDescription)")
+            logger.error("Failed to create model storage directories: \(error.localizedDescription, privacy: .public)")
         }
 
         for id in LocalModelID.allCases {
@@ -93,35 +234,56 @@ actor ModelStoreManager {
 
     // MARK: - Public API
 
-    func refreshInstalledStates() {
+    func refreshInstalledStates() async {
+        let manifest = await loadManifestForValidation()
+
         for id in LocalModelID.allCases {
             let current = states[id] ?? .notInstalled
             if current == .downloading {
                 continue
             }
 
-            let installed = isModelInstalledOnDisk(id)
-            states[id] = installed ? .installed : .notInstalled
-            if installed {
-                progress[id] = 1.0
-                lastErrors[id] = nil
-            } else {
+            if let entry = manifestEntry(for: id, in: manifest) {
+                switch validateInstalledModel(id, entry: entry) {
+                case .success:
+                    states[id] = .installed
+                    progress[id] = 1.0
+                    lastErrors[id] = nil
+                case .failure(let error):
+                    if modelDirectoryExists(id) {
+                        states[id] = .failed
+                        progress[id] = 0
+                        lastErrors[id] = humanReadableError(error)
+                    } else {
+                        states[id] = .notInstalled
+                        progress[id] = 0
+                        lastErrors[id] = nil
+                    }
+                }
+            } else if modelDirectoryExists(id) {
+                states[id] = .failed
                 progress[id] = 0
+                lastErrors[id] = "Model files exist but cannot be validated. Configure Hugging Face token and retry."
+            } else {
+                states[id] = .notInstalled
+                progress[id] = 0
+                lastErrors[id] = nil
             }
+
             postInstallStateChanged(id)
         }
     }
 
     func hasAnyInstalledModels() -> Bool {
-        LocalModelID.allCases.contains(where: { isModelInstalledOnDisk($0) })
+        LocalModelID.allCases.contains(where: { states[$0] == .installed })
     }
 
     func isInstalled(_ modelId: LocalModelID) -> Bool {
-        isModelInstalledOnDisk(modelId)
+        states[modelId] == .installed
     }
 
     func installedModelDirectory(for modelId: LocalModelID) -> String? {
-        guard isModelInstalledOnDisk(modelId) else {
+        guard states[modelId] == .installed else {
             return nil
         }
         return modelDirectory(for: modelId).path
@@ -155,10 +317,8 @@ actor ModelStoreManager {
     }
 
     func installAllModels() {
-        for id in LocalModelID.allCases {
-            if !isModelInstalledOnDisk(id) {
-                installModel(id)
-            }
+        for id in LocalModelID.allCases where states[id] != .installed {
+            installModel(id)
         }
     }
 
@@ -168,7 +328,44 @@ actor ModelStoreManager {
         if let task = installTasks[modelId] {
             await task.value
         }
-        return isModelInstalledOnDisk(modelId)
+        return states[modelId] == .installed
+    }
+
+    func hasConfiguredHuggingFaceToken() -> Bool {
+        !(HuggingFaceTokenStore.loadToken() ?? "").isEmpty
+    }
+
+    @discardableResult
+    func saveHuggingFaceToken(_ token: String) async -> String? {
+        do {
+            try HuggingFaceTokenStore.saveToken(token)
+            attemptedRemoteManifest = false
+            cachedManifest = nil
+            _ = try await fetchRemoteManifest()
+            await refreshInstalledStates()
+            return nil
+        } catch {
+            await refreshInstalledStates()
+            return humanReadableError(error)
+        }
+    }
+
+    @discardableResult
+    func clearHuggingFaceToken() async -> String? {
+        do {
+            try HuggingFaceTokenStore.clearToken()
+            attemptedRemoteManifest = false
+            cachedManifest = nil
+            await refreshInstalledStates()
+            return nil
+        } catch {
+            return humanReadableError(error)
+        }
+    }
+
+    func invalidateManifestCache() {
+        attemptedRemoteManifest = false
+        cachedManifest = nil
     }
 
     // MARK: - Install Logic
@@ -180,64 +377,28 @@ actor ModelStoreManager {
         postInstallStateChanged(modelId)
         postDownloadProgressChanged(modelId)
 
-        let tempInstallURL = downloadsRootURL
-            .appendingPathComponent("\(modelId.rawValue)-\(UUID().uuidString)", isDirectory: true)
-
         do {
-            let entry = try await manifestEntry(for: modelId)
-            try fm.createDirectory(at: tempInstallURL, withIntermediateDirectories: true)
-
-            var totalBytes: UInt64 = 0
-            for file in entry.files {
-                totalBytes += file.sizeBytes ?? 0
+            let token = try requireHuggingFaceToken()
+            let manifest = try await loadManifest(requireRemote: true)
+            guard let entry = manifestEntry(for: modelId, in: manifest) else {
+                throw ModelStoreError.manifestEntryMissing(modelId: modelId.rawValue)
             }
-            var completedBytes: UInt64 = 0
-            var completedFiles: UInt64 = 0
 
-            for file in entry.files {
-                let fileURL = try resolveFileURL(for: modelId, file: file)
-                let (tmpDownloadURL, _) = try await URLSession.shared.download(from: fileURL)
+            try purgeInvalidExistingModelIfNeeded(modelId, entry: entry)
 
-                let destination = tempInstallURL.appendingPathComponent(file.path)
-                let destinationDir = destination.deletingLastPathComponent()
-                try fm.createDirectory(at: destinationDir, withIntermediateDirectories: true)
-
-                if fm.fileExists(atPath: destination.path) {
-                    try fm.removeItem(at: destination)
-                }
-                try fm.moveItem(at: tmpDownloadURL, to: destination)
-
-                if let expected = file.sha256, !expected.isEmpty {
-                    let actual = try Self.sha256Hex(for: destination)
-                    guard actual.caseInsensitiveCompare(expected) == .orderedSame else {
-                        throw NSError(
-                            domain: "ModelStore",
-                            code: 1001,
-                            userInfo: [NSLocalizedDescriptionKey: "Checksum mismatch for \(file.path)"]
-                        )
-                    }
-                }
-
-                if let declared = file.sizeBytes {
-                    completedBytes += declared
+            do {
+                try await installModelFiles(modelId, entry: entry, token: token)
+            } catch {
+                if shouldRetryAfterPurge(error: error) {
+                    logger.warning("Install integrity failure for \(modelId.rawValue, privacy: .public); purging and retrying once")
+                    try? purgeModelDirectory(modelId)
+                    try await installModelFiles(modelId, entry: entry, token: token)
                 } else {
-                    completedBytes += try Self.fileSize(of: destination)
+                    throw error
                 }
-                completedFiles += 1
-
-                if totalBytes > 0 {
-                    progress[modelId] = min(0.99, Double(completedBytes) / Double(totalBytes))
-                } else {
-                    progress[modelId] = min(0.99, Double(completedFiles) / Double(max(entry.files.count, 1)))
-                }
-                postDownloadProgressChanged(modelId)
             }
 
-            let finalURL = modelDirectory(for: modelId)
-            if fm.fileExists(atPath: finalURL.path) {
-                try fm.removeItem(at: finalURL)
-            }
-            try fm.moveItem(at: tempInstallURL, to: finalURL)
+            try validateInstalledModelStrict(modelId, entry: entry)
 
             states[modelId] = .installed
             progress[modelId] = 1.0
@@ -247,127 +408,264 @@ actor ModelStoreManager {
             logger.info("Installed model \(modelId.rawValue, privacy: .public)")
 
         } catch {
-            logger.error("Install failed for \(modelId.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            logger.error("Install failed for \(modelId.rawValue, privacy: .public): \(self.humanReadableError(error), privacy: .public)")
             states[modelId] = .failed
             progress[modelId] = 0
-            lastErrors[modelId] = error.localizedDescription
+            lastErrors[modelId] = humanReadableError(error)
             postInstallStateChanged(modelId)
             postDownloadProgressChanged(modelId)
-
-            if fm.fileExists(atPath: tempInstallURL.path) {
-                try? fm.removeItem(at: tempInstallURL)
-            }
         }
 
         installTasks[modelId] = nil
     }
 
-    // MARK: - Manifest
+    private func installModelFiles(_ modelId: LocalModelID,
+                                   entry: ModelManifestEntry,
+                                   token: String) async throws {
+        let tempInstallURL = downloadsRootURL
+            .appendingPathComponent("\(modelId.rawValue)-\(UUID().uuidString)", isDirectory: true)
 
-    private func manifestEntry(for modelId: LocalModelID) async throws -> ModelManifestEntry {
-        let manifest = try await loadManifest()
-        guard let entry = manifest.models.first(where: { $0.id == modelId.rawValue }) else {
-            throw NSError(
-                domain: "ModelStore",
-                code: 1002,
-                userInfo: [NSLocalizedDescriptionKey: "Manifest entry missing for \(modelId.rawValue)"]
-            )
+        if fm.fileExists(atPath: tempInstallURL.path) {
+            try? fm.removeItem(at: tempInstallURL)
         }
-        return entry
+        try fm.createDirectory(at: tempInstallURL, withIntermediateDirectories: true)
+
+        defer {
+            if fm.fileExists(atPath: tempInstallURL.path) {
+                try? fm.removeItem(at: tempInstallURL)
+            }
+        }
+
+        var totalBytes: UInt64 = 0
+        for file in entry.files {
+            guard let size = file.sizeBytes, size > 0 else {
+                throw ModelStoreError.requiredFileSizeMissing(path: file.path)
+            }
+            guard let sha = file.sha256, !sha.isEmpty else {
+                throw ModelStoreError.requiredFileChecksumMissing(path: file.path)
+            }
+            totalBytes += size
+        }
+
+        var completedBytes: UInt64 = 0
+
+        for file in entry.files {
+            let fileURL = try resolveFileURL(for: modelId, file: file)
+            let (tmpDownloadURL, response) = try await downloadFile(from: fileURL, token: token, path: file.path)
+
+            let destination = tempInstallURL.appendingPathComponent(file.path)
+            let destinationDir = destination.deletingLastPathComponent()
+            try fm.createDirectory(at: destinationDir, withIntermediateDirectories: true)
+
+            if fm.fileExists(atPath: destination.path) {
+                try fm.removeItem(at: destination)
+            }
+            try fm.moveItem(at: tmpDownloadURL, to: destination)
+
+            try validateDownloadedFile(destination, manifestFile: file)
+
+            completedBytes += file.sizeBytes ?? 0
+            if totalBytes > 0 {
+                progress[modelId] = min(0.99, Double(completedBytes) / Double(totalBytes))
+            }
+            postDownloadProgressChanged(modelId)
+
+            logger.info("Downloaded \(file.path, privacy: .public) status=\(response.statusCode)")
+        }
+
+        let finalURL = modelDirectory(for: modelId)
+        if fm.fileExists(atPath: finalURL.path) {
+            try fm.removeItem(at: finalURL)
+        }
+        try fm.moveItem(at: tempInstallURL, to: finalURL)
     }
 
-    private func loadManifest() async throws -> ModelManifest {
+    private func downloadFile(from url: URL,
+                              token: String,
+                              path: String) async throws -> (URL, HTTPURLResponse) {
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (tmpDownloadURL, response) = try await URLSession.shared.download(for: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw ModelStoreError.invalidHttpResponse(path: path)
+        }
+
+        guard (200...299).contains(http.statusCode) else {
+            throw ModelStoreError.downloadHttpError(status: http.statusCode, path: path)
+        }
+
+        return (tmpDownloadURL, http)
+    }
+
+    private func validateDownloadedFile(_ fileURL: URL, manifestFile: ModelManifestFile) throws {
+        guard let expectedSize = manifestFile.sizeBytes else {
+            throw ModelStoreError.requiredFileSizeMissing(path: manifestFile.path)
+        }
+        let actualSize = try Self.fileSize(of: fileURL)
+        guard actualSize == expectedSize else {
+            throw ModelStoreError.fileSizeMismatch(path: manifestFile.path,
+                                                   expected: expectedSize,
+                                                   actual: actualSize)
+        }
+
+        guard let expectedSHA = manifestFile.sha256, !expectedSHA.isEmpty else {
+            throw ModelStoreError.requiredFileChecksumMissing(path: manifestFile.path)
+        }
+        let actualSHA = try Self.sha256Hex(for: fileURL)
+        guard actualSHA.caseInsensitiveCompare(expectedSHA) == .orderedSame else {
+            throw ModelStoreError.checksumMismatch(path: manifestFile.path)
+        }
+    }
+
+    // MARK: - Manifest
+
+    private func manifestEntry(for modelId: LocalModelID, in manifest: ModelManifest?) -> ModelManifestEntry? {
+        manifest?.models.first(where: { $0.id == modelId.rawValue })
+    }
+
+    private func loadManifestForValidation() async -> ModelManifest? {
         if let cachedManifest {
             return cachedManifest
         }
 
-        if !attemptedRemoteManifest {
-            attemptedRemoteManifest = true
-            if let remoteURL = URL(string: AppConstants.modelsManifestURL) {
-                do {
-                    let (data, response) = try await URLSession.shared.data(from: remoteURL)
-                    guard let http = response as? HTTPURLResponse,
-                          (200...299).contains(http.statusCode) else {
-                        throw NSError(domain: "ModelStore", code: 1003,
-                                      userInfo: [NSLocalizedDescriptionKey: "Remote manifest HTTP failure"])
-                    }
+        if let disk = readManifestFromDisk() {
+            cachedManifest = disk
+            return disk
+        }
 
-                    let decoded = try JSONDecoder().decode(ModelManifest.self, from: data)
-                    cachedManifest = decoded
-                    logger.info("Loaded remote model manifest")
-                    return decoded
-                } catch {
-                    logger.error("Remote manifest load failed: \(error.localizedDescription)")
-                }
+        if !attemptedRemoteManifest, hasConfiguredHuggingFaceToken() {
+            attemptedRemoteManifest = true
+            do {
+                return try await fetchRemoteManifest()
+            } catch {
+                logger.error("Remote manifest validation fetch failed: \(self.humanReadableError(error), privacy: .public)")
             }
         }
 
-        let fallback = fallbackManifest()
-        cachedManifest = fallback
-        logger.info("Using fallback model manifest")
-        return fallback
+        return nil
     }
 
-    private func fallbackManifest() -> ModelManifest {
-        func file(_ path: String) -> ModelManifestFile {
-            ModelManifestFile(path: path, url: nil, sha256: nil, sizeBytes: nil)
+    private func loadManifest(requireRemote: Bool) async throws -> ModelManifest {
+        if let cachedManifest {
+            return cachedManifest
         }
 
-        let opusFiles = [
-            file("model_profile.json"),
-            file("opus-mt-en-ru/config.json"),
-            file("opus-mt-en-ru/model.bin"),
-            file("opus-mt-en-ru/shared_vocabulary.json"),
-            file("opus-mt-en-ru/source.spm"),
-            file("opus-mt-en-ru/target.spm"),
-            file("opus-mt-ru-en/config.json"),
-            file("opus-mt-ru-en/model.bin"),
-            file("opus-mt-ru-en/shared_vocabulary.json"),
-            file("opus-mt-ru-en/source.spm"),
-            file("opus-mt-ru-en/target.spm"),
-        ]
+        if !requireRemote, let disk = readManifestFromDisk() {
+            cachedManifest = disk
+            return disk
+        }
 
-        let opusBigFiles = [
-            file("model_profile.json"),
-            file("opus-mt-en-zle/config.json"),
-            file("opus-mt-en-zle/model.bin"),
-            file("opus-mt-en-zle/shared_vocabulary.json"),
-            file("opus-mt-en-zle/source.spm"),
-            file("opus-mt-en-zle/target.spm"),
-            file("opus-mt-zle-en/config.json"),
-            file("opus-mt-zle-en/model.bin"),
-            file("opus-mt-zle-en/shared_vocabulary.json"),
-            file("opus-mt-zle-en/source.spm"),
-            file("opus-mt-zle-en/target.spm"),
-        ]
+        return try await fetchRemoteManifest()
+    }
 
-        let nllbFiles = [
-            file("model_profile.json"),
-            file("config.json"),
-            file("generation_config.json"),
-            file("model.bin"),
-            file("shared_vocabulary.json"),
-            file("sentencepiece.bpe.model"),
-        ]
+    private func fetchRemoteManifest() async throws -> ModelManifest {
+        guard let remoteURL = URL(string: AppConstants.modelsManifestURL) else {
+            throw ModelStoreError.invalidManifestURL
+        }
 
-        return ModelManifest(schemaVersion: 1, models: [
-            ModelManifestEntry(id: LocalModelID.opusBase.rawValue,
-                               family: LocalModelFamily.opus.rawValue,
-                               version: "1",
-                               files: opusFiles),
-            ModelManifestEntry(id: LocalModelID.opusBig.rawValue,
-                               family: LocalModelFamily.opus.rawValue,
-                               version: "1",
-                               files: opusBigFiles),
-            ModelManifestEntry(id: LocalModelID.nllb13b.rawValue,
-                               family: LocalModelFamily.nllb.rawValue,
-                               version: "1",
-                               files: nllbFiles),
-            ModelManifestEntry(id: LocalModelID.nllb33b.rawValue,
-                               family: LocalModelFamily.nllb.rawValue,
-                               version: "1",
-                               files: nllbFiles),
-        ])
+        let token = try requireHuggingFaceToken()
+        var request = URLRequest(url: remoteURL)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw ModelStoreError.invalidHttpResponse(path: "manifest-v1.json")
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw ModelStoreError.manifestHttpError(status: http.statusCode)
+        }
+
+        let decoded: ModelManifest
+        do {
+            decoded = try JSONDecoder().decode(ModelManifest.self, from: data)
+        } catch {
+            throw ModelStoreError.manifestDecodeFailed
+        }
+
+        try validateManifest(decoded)
+        cachedManifest = decoded
+        attemptedRemoteManifest = true
+
+        do {
+            try data.write(to: manifestCacheURL, options: .atomic)
+        } catch {
+            logger.error("Failed to write manifest cache: \(error.localizedDescription, privacy: .public)")
+        }
+
+        logger.info("Loaded remote model manifest")
+        return decoded
+    }
+
+    private func readManifestFromDisk() -> ModelManifest? {
+        guard fm.fileExists(atPath: manifestCacheURL.path) else {
+            return nil
+        }
+
+        do {
+            let data = try Data(contentsOf: manifestCacheURL)
+            let manifest = try JSONDecoder().decode(ModelManifest.self, from: data)
+            try validateManifest(manifest)
+            return manifest
+        } catch {
+            logger.error("Ignoring invalid cached manifest: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    private func validateManifest(_ manifest: ModelManifest) throws {
+        guard manifest.schemaVersion == 1 else {
+            throw ModelStoreError.manifestValidationFailed(reason: "Unsupported schema_version \(manifest.schemaVersion)")
+        }
+
+        for model in LocalModelID.allCases {
+            guard let entry = manifest.models.first(where: { $0.id == model.rawValue }) else {
+                throw ModelStoreError.manifestValidationFailed(reason: "Missing model \(model.rawValue)")
+            }
+            if entry.files.isEmpty {
+                throw ModelStoreError.manifestValidationFailed(reason: "\(model.rawValue) has no files")
+            }
+            for file in entry.files {
+                guard let size = file.sizeBytes, size > 0 else {
+                    throw ModelStoreError.manifestValidationFailed(reason: "\(model.rawValue)/\(file.path) missing size_bytes")
+                }
+                guard let sha = file.sha256, !sha.isEmpty else {
+                    throw ModelStoreError.manifestValidationFailed(reason: "\(model.rawValue)/\(file.path) missing sha256")
+                }
+            }
+        }
+    }
+
+    private func requireHuggingFaceToken() throws -> String {
+        let token = HuggingFaceTokenStore.loadToken()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !token.isEmpty else {
+            throw ModelStoreError.tokenMissing
+        }
+        return token
+    }
+
+    private func shouldRetryAfterPurge(error: Error) -> Bool {
+        guard let err = error as? ModelStoreError else {
+            return false
+        }
+
+        switch err {
+        case .requiredFileMissing,
+             .requiredFileSizeMissing,
+             .requiredFileChecksumMissing,
+             .fileSizeMismatch,
+             .checksumMismatch:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func humanReadableError(_ error: Error) -> String {
+        if let store = error as? ModelStoreError, let desc = store.errorDescription {
+            return desc
+        }
+        return error.localizedDescription
     }
 
     // MARK: - Filesystem
@@ -376,23 +674,66 @@ actor ModelStoreManager {
         modelsRootURL.appendingPathComponent(modelId.rawValue, isDirectory: true)
     }
 
-    private func isModelInstalledOnDisk(_ modelId: LocalModelID) -> Bool {
+    private func modelDirectoryExists(_ modelId: LocalModelID) -> Bool {
         let dir = modelDirectory(for: modelId)
         var isDir: ObjCBool = false
-        guard fm.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else {
-            return false
+        return fm.fileExists(atPath: dir.path, isDirectory: &isDir) && isDir.boolValue
+    }
+
+    private func purgeModelDirectory(_ modelId: LocalModelID) throws {
+        let dir = modelDirectory(for: modelId)
+        if fm.fileExists(atPath: dir.path) {
+            try fm.removeItem(at: dir)
+        }
+    }
+
+    private func purgeInvalidExistingModelIfNeeded(_ modelId: LocalModelID, entry: ModelManifestEntry) throws {
+        guard modelDirectoryExists(modelId) else {
+            return
         }
 
-        switch modelId.family {
-        case .opus:
-            let hasBasePair = fm.fileExists(atPath: dir.appendingPathComponent("opus-mt-en-ru/model.bin").path)
-                && fm.fileExists(atPath: dir.appendingPathComponent("opus-mt-ru-en/model.bin").path)
-            let hasBigPair = fm.fileExists(atPath: dir.appendingPathComponent("opus-mt-en-zle/model.bin").path)
-                && fm.fileExists(atPath: dir.appendingPathComponent("opus-mt-zle-en/model.bin").path)
-            return hasBasePair || hasBigPair
-        case .nllb:
-            return fm.fileExists(atPath: dir.appendingPathComponent("model.bin").path)
-                && fm.fileExists(atPath: dir.appendingPathComponent("sentencepiece.bpe.model").path)
+        switch validateInstalledModel(modelId, entry: entry) {
+        case .success:
+            return
+        case .failure(let error):
+            logger.warning("Purging invalid existing model \(modelId.rawValue, privacy: .public): \(self.humanReadableError(error), privacy: .public)")
+            try purgeModelDirectory(modelId)
+        }
+    }
+
+    private func validateInstalledModel(_ modelId: LocalModelID, entry: ModelManifestEntry) -> Result<Void, Error> {
+        let dir = modelDirectory(for: modelId)
+
+        for file in entry.files {
+            let fileURL = dir.appendingPathComponent(file.path)
+            guard fm.fileExists(atPath: fileURL.path) else {
+                return .failure(ModelStoreError.requiredFileMissing(path: file.path))
+            }
+            guard let expected = file.sizeBytes else {
+                return .failure(ModelStoreError.requiredFileSizeMissing(path: file.path))
+            }
+
+            do {
+                let actual = try Self.fileSize(of: fileURL)
+                if actual != expected {
+                    return .failure(ModelStoreError.fileSizeMismatch(path: file.path, expected: expected, actual: actual))
+                }
+            } catch {
+                return .failure(error)
+            }
+        }
+
+        return .success(())
+    }
+
+    private func validateInstalledModelStrict(_ modelId: LocalModelID, entry: ModelManifestEntry) throws {
+        let dir = modelDirectory(for: modelId)
+        for file in entry.files {
+            let fileURL = dir.appendingPathComponent(file.path)
+            guard fm.fileExists(atPath: fileURL.path) else {
+                throw ModelStoreError.requiredFileMissing(path: file.path)
+            }
+            try validateDownloadedFile(fileURL, manifestFile: file)
         }
     }
 
@@ -401,12 +742,10 @@ actor ModelStoreManager {
             return url
         }
 
-        guard let base = URL(string: "https://huggingface.co/grantr-code/translateanywhere-models/resolve/main") else {
-            throw NSError(domain: "ModelStore", code: 1004,
-                          userInfo: [NSLocalizedDescriptionKey: "Invalid fallback model base URL"])
+        guard let base = URL(string: AppConstants.modelsArtifactsBaseURL) else {
+            throw ModelStoreError.invalidModelBaseURL
         }
 
-        // Keep each model under its own directory in the artifact repo.
         return base
             .appendingPathComponent(modelId.rawValue)
             .appendingPathComponent(file.path)

@@ -237,9 +237,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let ok = await ModelStoreManager.shared.installModelAndWait(selected)
         if !ok {
+            let status = await ModelStoreManager.shared.status(for: selected)
             let fail = NSAlert()
             fail.messageText = "Model Installation Failed"
-            fail.informativeText = "Could not install \(selected.label). Open the Models menu to retry."
+            var info = "Could not install \(selected.label). Open the Models menu to retry."
+            if let detail = status.lastError, !detail.isEmpty {
+                info += "\n\nDetails: \(detail)"
+            }
+            fail.informativeText = info
             fail.alertStyle = .warning
             fail.addButton(withTitle: "OK")
             fail.runModal()
@@ -252,7 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let alert = NSAlert()
         alert.messageText = "Local Model Missing"
-        alert.informativeText = "The selected local model is not installed. Open the menu and use Models > Downloads to install one."
+        alert.informativeText = "The selected local model is not installed. Open the menu and use Models > Downloads to install one. If your model repo is private, configure a Hugging Face token first."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         alert.runModal()

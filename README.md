@@ -8,6 +8,7 @@ TranslateAnywhere runs local models through CTranslate2 (OPUS and NLLB options) 
 
 - **High-accuracy local model options** -- Choose between OPUS Base, OPUS Big, NLLB 1.3B, and NLLB 3.3B for EN<->RU translation quality/resource tradeoffs.
 - **On-demand model downloads** -- Install models from the menu (`Models > Downloads`) or via first-run prompt; model weights are stored in `~/Library/Application Support/TranslateAnywhere/models/`.
+- **Private Hugging Face auth** -- Configure a Hugging Face read token from `Models > Configure Hugging Face Token…`; token is stored in macOS Keychain.
 - **Configurable global hotkey** -- Default Ctrl+Option+T. Change it to any combination that includes Control or Command.
 - **Context-aware output** -- In editable text inputs, the selected text is replaced in-place via simulated Cmd+V. In non-editable contexts (e.g., selected webpage text), translation appears in a small popup near the cursor.
 - **Auto-detect direction** -- Automatically determines whether the selected text is Russian or English and translates in the correct direction.
@@ -239,6 +240,7 @@ All settings are accessible from the menu bar icon's dropdown menu.
 | Backend | Local / Ollama | Local |
 | Active local model | OPUS Base / OPUS Big / NLLB 1.3B / NLLB 3.3B | NLLB 1.3B |
 | Model downloads | Install one model or Download All from `Models > Downloads` | N/A |
+| Hugging Face token | Configure/clear private artifact repo access in `Models` submenu | Not set |
 | Restore clipboard | Restore original clipboard after capture/replace | On |
 | Hotkey | The global keyboard shortcut to trigger translation | Ctrl+Option+T |
 | Ollama endpoint | HTTP endpoint for the Ollama server | http://localhost:11434 |
@@ -314,6 +316,7 @@ The trigger hotkey can be changed to any combination that includes at least Cont
 - Open the menu and check `Models > Active Model` and `Models > Downloads` status.
 - Install or re-install the selected model from `Models > Downloads`.
 - Verify model files exist under `~/Library/Application Support/TranslateAnywhere/models/<model-id>/`.
+- If using private artifacts, configure a token in `Models > Configure Hugging Face Token…`.
 - Look for error messages in Console.app by filtering for "com.translateanywhere.app".
 
 ### "App does not appear in menu bar"
