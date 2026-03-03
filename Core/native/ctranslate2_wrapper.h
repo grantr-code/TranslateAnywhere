@@ -15,9 +15,10 @@ extern "C" {
  * Translate text using CTranslate2 + SentencePiece.
  *
  * input_text:      null-terminated UTF-8 input string.
- * model_base_dir:  null-terminated UTF-8 path to directory containing model subdirectories
- *                  (opus-mt-en-ru/ and opus-mt-ru-en/).
+ * model_base_dir:  null-terminated UTF-8 path to model root directory
+ *                  (OPUS paired subdirectories or NLLB single-model layout).
  * direction:       1 = en->ru, 2 = ru->en.
+ * model_family:    1 = OPUS family, 2 = NLLB family.
  * threads:         number of intra-op threads for CTranslate2.
  *
  * Returns a heap-allocated null-terminated C string with the translation.
@@ -25,13 +26,19 @@ extern "C" {
  * Returns NULL on error.
  */
 char* cpp_translate(const char* input_text, const char* model_base_dir,
-                    int direction, int threads);
+                    int direction, int model_family, int threads);
 
 /*
  * Free a string returned by cpp_translate.
  * Safe to call with NULL.
  */
 void cpp_free_string(char* ptr);
+
+/*
+ * Clear cached loaded model instances.
+ * Called when tc_init switches to a new model path/family.
+ */
+void cpp_reset_cache(void);
 
 #ifdef __cplusplus
 }

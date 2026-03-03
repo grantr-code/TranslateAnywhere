@@ -2,11 +2,12 @@
 
 A macOS menu-bar application that translates between Russian and English via a global hotkey. Select text in any application, press the hotkey, and TranslateAnywhere either replaces the selected text (editable fields) or shows a small popup with the translation (non-editable selections).
 
-TranslateAnywhere runs entirely offline using OPUS-MT models through CTranslate2, with an optional Ollama backend for LLM-based translation.
+TranslateAnywhere runs local models through CTranslate2 (OPUS and NLLB options) with an optional Ollama backend for LLM-based translation. Local model files are downloaded on demand and are not bundled into the `.app` or `.dmg`.
 
 ## Features
 
-- **Offline OPUS-MT translation** -- Helsinki-NLP OPUS-MT models run locally via CTranslate2 and SentencePiece. No internet required.
+- **High-accuracy local model options** -- Choose between OPUS Base, OPUS Big, NLLB 1.3B, and NLLB 3.3B for EN<->RU translation quality/resource tradeoffs.
+- **On-demand model downloads** -- Install models from the menu (`Models > Downloads`) or via first-run prompt; model weights are stored in `~/Library/Application Support/TranslateAnywhere/models/`.
 - **Configurable global hotkey** -- Default Ctrl+Option+T. Change it to any combination that includes Control or Command.
 - **Context-aware output** -- In editable text inputs, the selected text is replaced in-place via simulated Cmd+V. In non-editable contexts (e.g., selected webpage text), translation appears in a small popup near the cursor.
 - **Auto-detect direction** -- Automatically determines whether the selected text is Russian or English and translates in the correct direction.
@@ -24,7 +25,7 @@ TranslateAnywhere runs entirely offline using OPUS-MT models through CTranslate2
 | Rust toolchain | stable (Homebrew `rust` or rustup) |
 | Python 3 | 3.9+ (for model conversion via CTranslate2 Python package) |
 | CMake | 3.18+ (for building CTranslate2 and SentencePiece) |
-| Disk space | ~600 MB for downloaded and converted OPUS-MT models |
+| Disk space | ~600 MB to ~7 GB depending on installed local models |
 
 > **Note:** Universal2 (arm64 + x86_64) builds require a rustup-managed Rust toolchain with both targets installed. Homebrew Rust builds for the host architecture only.
 
@@ -51,9 +52,8 @@ The all-in-one development setup script. It performs the following steps in orde
 1. **Checks dependencies** -- Verifies that `cmake`, `python3`, `rustc`, and `cargo` are installed. Installs missing tools via Homebrew or rustup.
 2. **Initializes git submodules** -- Clones CTranslate2 and SentencePiece into `ThirdParty/` if not already present.
 3. **Builds third-party libraries** -- Runs `build_thirdparty_universal.sh` to compile CTranslate2 and SentencePiece as static libraries.
-4. **Fetches and converts models** -- Runs `fetch_and_convert_models.sh` to download Helsinki-NLP OPUS-MT models and convert them to CTranslate2 format.
-5. **Builds the Rust core** -- Runs `build_core_universal.sh` to compile `translator_core` as a static library.
-6. **Builds the Xcode project** -- Runs `xcodebuild` in Debug configuration.
+4. **Builds the Rust core** -- Runs `build_core_universal.sh` to compile `translator_core` as a static library.
+5. **Builds the Xcode project** -- Runs `xcodebuild` in Debug configuration.
 
 ```bash
 ./scripts/dev_setup.sh
@@ -69,7 +69,7 @@ Compiles CTranslate2 and SentencePiece from source, then merges the resulting st
 
 ### `scripts/fetch_and_convert_models.sh`
 
-Downloads the Helsinki-NLP OPUS-MT models (`opus-mt-en-ru` and `opus-mt-ru-en`) from Hugging Face, then converts them to CTranslate2 format. Outputs are placed in `models/opus-mt-en-ru/` and `models/opus-mt-ru-en/`, each containing the CTranslate2 model files and `source.spm` / `target.spm` SentencePiece models.
+Legacy helper script for local development to build OPUS artifacts in `models/`. The app itself now downloads runtime models into Application Support and does not read bundled model files.
 
 ```bash
 ./scripts/fetch_and_convert_models.sh
@@ -85,10 +85,26 @@ Compiles the Rust `translator_core` crate as a static library (`staticlib`) and 
 
 ### `scripts/package.sh`
 
-Packages the built application into a distributable `.dmg` disk image in the `dist/` directory.
+Packages the built application into a distributable `.dmg` disk image in the `dist/` directory. The script asserts that no `Contents/Resources/models` directory exists in the app bundle.
 
 ```bash
 ./scripts/package.sh
+```
+
+### `scripts/build_model_artifacts.sh`
+
+Builds runtime-downloadable model artifacts (OPUS base/big and NLLB 1.3B/3.3B) and generates `manifest-v1.json` with SHA-256 checksums.
+
+```bash
+./scripts/build_model_artifacts.sh
+```
+
+### `scripts/verify_model_artifacts.sh`
+
+Validates artifact files against checksums in `manifest-v1.json`.
+
+```bash
+./scripts/verify_model_artifacts.sh dist/model-artifacts
 ```
 
 ## Architecture
@@ -132,7 +148,7 @@ Packages the built application into a distributable `.dmg` disk image in the `di
 2. `SelectionCapture` reads selected text via simulated Cmd+C or Accessibility API fallback.
 3. `TranslatorService` calls through the C ABI into the Rust `translator_core` static library.
 4. Rust resolves auto-detect direction via `tc_is_russian` (Cyrillic character ratio analysis).
-5. Rust calls into the C++ wrapper (`cpp_translate`), which loads CTranslate2 models lazily and runs SentencePiece tokenization + CTranslate2 inference.
+5. Rust calls into the C++ wrapper (`cpp_translate`), which loads the selected model family (OPUS or NLLB) and runs SentencePiece tokenization + CTranslate2 inference.
 6. The translated UTF-8 string is returned back up through the C ABI.
 7. If the focused context is editable, `SelectionCapture` replaces the selected text in-place via simulated Cmd+V. Otherwise, a transient popup is shown near the cursor with the translated text.
 
@@ -150,6 +166,7 @@ TranslateAnywhere/
 │   │   ├── Info.plist                  # App bundle configuration
 │   │   ├── main.swift                  # App entry point
 │   │   ├── MenuManager.swift           # Status bar menu
+│   │   ├── ModelStoreManager.swift     # Runtime model install/download manager
 │   │   ├── SelectionCapture.swift      # Text capture via Cmd+C / AX fallback
 │   │   ├── SettingsManager.swift       # UserDefaults wrapper singleton
 │   │   ├── TranslateAnywhere.entitlements
@@ -176,11 +193,13 @@ TranslateAnywhere/
 │   ├── dev_setup.sh                    # Full development environment setup
 │   ├── build_thirdparty_universal.sh   # Build CTranslate2 + SentencePiece
 │   ├── fetch_and_convert_models.sh     # Download and convert OPUS-MT models
+│   ├── build_model_artifacts.sh        # Build downloadable model artifacts + manifest
+│   ├── verify_model_artifacts.sh       # Verify artifact checksums from manifest
 │   ├── build_core_universal.sh         # Build Rust staticlib
 │   └── package.sh                      # Package app into .dmg
 ├── build/                              # Build output (gitignored)
 ├── dist/                               # Distributable .dmg output
-├── models/                             # Converted OPUS-MT models (gitignored)
+├── models/                             # Optional local conversion output (legacy helper path)
 ├── .gitignore
 └── README.md
 ```
@@ -200,12 +219,13 @@ MODELS_DIR=/path/to/models cargo test --manifest-path Core/translator_core/Cargo
 ### Smoke test
 
 1. Build and run the app from Xcode (Cmd+R).
-2. Grant Accessibility and Input Monitoring permissions when prompted.
-3. Open any text editor and type "Hello, how are you?"
-4. Select the text and press Ctrl+Option+T.
-5. Verify that the text is replaced with a Russian translation.
-6. Select the Russian text, press the hotkey again, and verify it is replaced with English.
-7. Select non-editable text in a webpage (or other read-only UI) and press the hotkey; verify a small popup appears near the cursor with the translation.
+2. If prompted, install the default local model (NLLB 1.3B) from the one-click first-run dialog.
+3. Grant Accessibility and Input Monitoring permissions when prompted.
+4. Open any text editor and type "Hello, how are you?"
+5. Select the text and press Ctrl+Option+T.
+6. Verify that the text is replaced with a Russian translation.
+7. Select the Russian text, press the hotkey again, and verify it is replaced with English.
+8. Select non-editable text in a webpage (or other read-only UI) and press the hotkey; verify a small popup appears near the cursor with the translation.
 
 ## Configuration
 
@@ -216,7 +236,9 @@ All settings are accessible from the menu bar icon's dropdown menu.
 | Option | Description | Default |
 |---|---|---|
 | Direction | Auto Detect / EN->RU / RU->EN | Auto Detect |
-| Backend | Local (OPUS-MT) / Ollama | Local (OPUS-MT) |
+| Backend | Local / Ollama | Local |
+| Active local model | OPUS Base / OPUS Big / NLLB 1.3B / NLLB 3.3B | NLLB 1.3B |
+| Model downloads | Install one model or Download All from `Models > Downloads` | N/A |
 | Restore clipboard | Restore original clipboard after capture/replace | On |
 | Hotkey | The global keyboard shortcut to trigger translation | Ctrl+Option+T |
 | Ollama endpoint | HTTP endpoint for the Ollama server | http://localhost:11434 |
@@ -234,6 +256,7 @@ All settings are accessible from the menu bar icon's dropdown menu.
 | `maxInputChars` | Int | Character limit for input text |
 | `ollamaEndpoint` | String | Ollama server URL |
 | `ollamaModel` | String | Ollama model identifier |
+| `localModelId` | String | Selected local model id (`opus_base`, `opus_big`, `nllb_1_3b`, `nllb_3_3b`) |
 
 ## Permissions
 
@@ -266,7 +289,7 @@ The trigger hotkey can be changed to any combination that includes at least Cont
 3. **Clipboard preservation** -- The user's clipboard contents (including images, RTF, and file references -- not just plain text) are saved before capture and restored afterward when the "Restore clipboard" preference is enabled.
 4. **Mutex poisoning recovery** -- If the translation thread panics, the Rust mutex is recovered via `poisoned.into_inner()` rather than propagating the panic.
 5. **Null pointer safety** -- `tc_free_buffer` is safe to call with a null pointer. All C ABI entry points validate input pointers before dereferencing.
-6. **Re-initialization is a no-op** -- Calling `tc_init` a second time returns success without overwriting the already-loaded translator instance.
+6. **Re-initialization replaces active model** -- Calling `tc_init` again swaps the active local model and clears C++ model caches.
 7. **Hotkey registration fallback** -- If the user's configured hotkey cannot be registered (e.g., conflict with another app), the app falls back to Ctrl+Option+T and shows a warning alert.
 8. **Modifier validation** -- Hotkey combinations that do not include Control or Command are rejected to avoid accidental triggers.
 9. **Non-alphabetic input** -- Strings containing only numbers, punctuation, or whitespace are classified as non-Russian (returns 0 from `tc_is_russian`), which defaults to EN->RU translation direction.
@@ -288,8 +311,9 @@ The trigger hotkey can be changed to any combination that includes at least Cont
 
 ### "Translation returns empty or fails"
 
-- Ensure the OPUS-MT models were downloaded and converted successfully by running `./scripts/fetch_and_convert_models.sh`.
-- Check that the model directories `models/opus-mt-en-ru/` and `models/opus-mt-ru-en/` exist and contain both CTranslate2 model files and `.spm` files.
+- Open the menu and check `Models > Active Model` and `Models > Downloads` status.
+- Install or re-install the selected model from `Models > Downloads`.
+- Verify model files exist under `~/Library/Application Support/TranslateAnywhere/models/<model-id>/`.
 - Look for error messages in Console.app by filtering for "com.translateanywhere.app".
 
 ### "App does not appear in menu bar"

@@ -51,15 +51,25 @@ typedef struct {
 /*
  * Initialize the translation engine.
  *
- * model_base_dir: UTF-8 path to directory containing model subdirectories:
- *     <model_base_dir>/opus-mt-en-ru/
- *     <model_base_dir>/opus-mt-ru-en/
- * Each subdirectory must contain the CTranslate2 model files and
- * source.spm / target.spm SentencePiece models.
+ * model_base_dir: UTF-8 path to a model root directory.
+ *
+ * Supported layouts:
+ *
+ * 1) OPUS family (paired directional models)
+ *    - <model_base_dir>/opus-mt-en-ru/ and <model_base_dir>/opus-mt-ru-en/
+ *      or
+ *    - <model_base_dir>/opus-mt-en-zle/ and <model_base_dir>/opus-mt-zle-en/
+ *
+ * 2) NLLB family (single multilingual model)
+ *    - <model_base_dir>/model.bin
+ *    - <model_base_dir>/sentencepiece.bpe.model
+ *
+ * Optional: model_profile.json to explicitly declare model family metadata.
  *
  * threads: number of intra-op threads for CTranslate2 (0 = auto).
  *
  * Returns 0 on success, non-zero on failure.
+ * Calling tc_init again reinitializes the active local model.
  */
 int32_t tc_init(const uint8_t *model_base_dir, uint32_t dir_len, int32_t threads);
 

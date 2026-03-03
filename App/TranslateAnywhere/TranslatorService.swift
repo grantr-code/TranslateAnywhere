@@ -26,23 +26,33 @@ final class TranslatorService: @unchecked Sendable {
 
     private let logger = Logger(subsystem: "com.translateanywhere.app", category: "Translator")
     private var isInitialized = false
-    private var didRunWarmup = false
+    private var warmupModelId: LocalModelID?
+    private var initializedModelId: LocalModelID?
     private let queue = DispatchQueue(label: "com.translateanywhere.translator", qos: .userInitiated)
 
     // MARK: - Lifecycle
 
-    /// Initializes the local translation engine with models from the app bundle.
-    /// Returns true on success.
-    func initialize() -> Bool {
-        guard let resourcePath = Bundle.main.resourcePath else {
-            logger.error("Bundle.main.resourcePath is nil")
+    /// Initializes the local translation engine using the currently selected model
+    /// from the runtime model store (~Library/Application Support/.../models).
+    @discardableResult
+    func initializeSelectedLocalModel() async -> Bool {
+        let settings = await SettingsManager.shared
+        let selectedModel = await settings.localModelId
+
+        if isInitialized, initializedModelId == selectedModel {
+            return true
+        }
+
+        guard let modelPath = await ModelStoreManager.shared.installedModelDirectory(for: selectedModel) else {
+            logger.error("Selected model is not installed: \(selectedModel.rawValue)")
+            isInitialized = false
+            initializedModelId = nil
             return false
         }
 
-        let modelPath = resourcePath + "/models"
-        logger.info("Initializing translator core with model path: \(modelPath)")
-        let threadCount = preferredThreadCount()
+        logger.info("Initializing translator core with selected model \(selectedModel.rawValue, privacy: .public) at path: \(modelPath, privacy: .public)")
 
+        let threadCount = preferredThreadCount()
         let utf8 = Array(modelPath.utf8)
         let result: Int32 = utf8.withUnsafeBufferPointer { buf in
             guard let base = buf.baseAddress else { return Int32(-1) }
@@ -51,21 +61,34 @@ final class TranslatorService: @unchecked Sendable {
 
         if result == 0 {
             isInitialized = true
-            logger.info("Translator core initialized successfully (threads=\(threadCount))")
+            initializedModelId = selectedModel
+            if warmupModelId != selectedModel {
+                warmupModelId = nil
+            }
+            logger.info("Translator core initialized successfully for model \(selectedModel.rawValue, privacy: .public) (threads=\(threadCount))")
         } else {
+            isInitialized = false
+            initializedModelId = nil
             logger.error("Translator core init failed with code \(result)")
         }
+
         return result == 0
+    }
+
+    /// Re-initializes local translation if the selected model changed.
+    func reinitializeForSelectionChange() async {
+        _ = await initializeSelectedLocalModel()
     }
 
     /// Pre-load both local translation directions so first real hotkey press
     /// does not pay model load latency.
     func warmupLocalModels() async {
         guard isInitialized else { return }
-        guard !didRunWarmup else { return }
-        didRunWarmup = true
+        guard let modelId = initializedModelId else { return }
+        guard warmupModelId != modelId else { return }
+        warmupModelId = modelId
 
-        logger.info("Starting local model warmup")
+        logger.info("Starting local model warmup for \(modelId.rawValue, privacy: .public)")
         let startedAt = DispatchTime.now().uptimeNanoseconds
 
         _ = await translateLocal(text: "Warmup hello", direction: .enToRu)
@@ -116,9 +139,12 @@ final class TranslatorService: @unchecked Sendable {
     private func translateLocal(text: String, direction: TranslateDirection) async -> TranslationResult {
         logger.info("Translating locally: direction=\(direction.label), len=\(text.count)")
 
-        guard isInitialized else {
-            logger.error("Translator core not initialized")
-            return TranslationResult(text: "", status: .notInitialized, detectedDirection: direction)
+        if !isInitialized {
+            let ok = await initializeSelectedLocalModel()
+            if !ok {
+                logger.error("Local translation failed: selected model unavailable")
+                return TranslationResult(text: "", status: .modelNotFound, detectedDirection: direction)
+            }
         }
 
         return await withCheckedContinuation { continuation in

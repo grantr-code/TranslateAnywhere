@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Whether a translation is currently in flight (debounce guard).
     private var isTranslating = false
+    private var didShowModelMissingAlert = false
 
     // MARK: - Application Lifecycle
 
@@ -64,7 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Initialize translation engine (non-blocking)
         Task {
-            let success = translatorService.initialize()
+            await ModelStoreManager.shared.refreshInstalledStates()
+            await ensureLocalModelExistsOnFirstRunIfNeeded()
+            let success = await translatorService.initializeSelectedLocalModel()
             if success {
                 logger.info("Translation engine ready")
                 await translatorService.warmupLocalModels()
@@ -95,6 +98,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         nc.addObserver(self, selector: #selector(onHotkeyChanged),
                        name: .hotkeyChanged, object: nil)
+
+        nc.addObserver(self, selector: #selector(onModelSelectionChanged),
+                       name: .modelSelectionChanged, object: nil)
+
+        nc.addObserver(self, selector: #selector(onModelInstallStateChanged),
+                       name: .modelInstallStateChanged, object: nil)
     }
 
     // MARK: - Hotkey Triggered
@@ -145,6 +154,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             guard result.status == .ok else {
                 logger.error("Translation failed: status=\(result.status.rawValue)")
+                if result.status == .modelNotFound {
+                    showModelMissingAlertIfNeeded()
+                }
                 NSSound.beep()
                 return
             }
@@ -177,6 +189,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func onHotkeyChanged() {
         logger.info("Hotkey changed notification received")
+    }
+
+    @objc private func onModelSelectionChanged() {
+        logger.info("Model selection changed notification received")
+        Task {
+            _ = await translatorService.initializeSelectedLocalModel()
+            await translatorService.warmupLocalModels()
+        }
+    }
+
+    @objc private func onModelInstallStateChanged() {
+        Task {
+            let settings = SettingsManager.shared
+            let selected = settings.localModelId
+            if await ModelStoreManager.shared.isInstalled(selected) {
+                _ = await translatorService.initializeSelectedLocalModel()
+                await translatorService.warmupLocalModels()
+            }
+        }
+    }
+
+    private func ensureLocalModelExistsOnFirstRunIfNeeded() async {
+        let settings = SettingsManager.shared
+        guard settings.backend == .local else { return }
+        guard !(await ModelStoreManager.shared.hasAnyInstalledModels()) else { return }
+
+        let selected = settings.localModelId
+        let alert = NSAlert()
+        alert.messageText = "Install Local Translation Model"
+        alert.informativeText = "No local translation models are installed. Install \(selected.label) now?\n\nApproximate size: \(selected.approximateSizeLabel)\nLicense: \(selected.licenseLabel)"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Install")
+        alert.addButton(withTitle: "Not Now")
+        let response = alert.runModal()
+
+        guard response == .alertFirstButtonReturn else {
+            return
+        }
+
+        let progressAlert = NSAlert()
+        progressAlert.messageText = "Downloading \(selected.label)"
+        progressAlert.informativeText = "Model download has started and may take several minutes. You can monitor progress from the menu."
+        progressAlert.alertStyle = .informational
+        progressAlert.addButton(withTitle: "OK")
+        progressAlert.runModal()
+
+        let ok = await ModelStoreManager.shared.installModelAndWait(selected)
+        if !ok {
+            let fail = NSAlert()
+            fail.messageText = "Model Installation Failed"
+            fail.informativeText = "Could not install \(selected.label). Open the Models menu to retry."
+            fail.alertStyle = .warning
+            fail.addButton(withTitle: "OK")
+            fail.runModal()
+        }
+    }
+
+    private func showModelMissingAlertIfNeeded() {
+        guard !didShowModelMissingAlert else { return }
+        didShowModelMissingAlert = true
+
+        let alert = NSAlert()
+        alert.messageText = "Local Model Missing"
+        alert.informativeText = "The selected local model is not installed. Open the menu and use Models > Downloads to install one."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }
 

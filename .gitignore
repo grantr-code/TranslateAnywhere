@@ -1,6 +1,7 @@
 # Build artifacts
 build/
 dist/*.dmg
+dist/model-artifacts/
 .build/
 DerivedData/
 
@@ -24,6 +25,7 @@ models/
 
 # Python venv for model conversion
 scripts/.venv/
+scripts/.venv-artifacts/
 scripts/.conda-env/
 
 # OS

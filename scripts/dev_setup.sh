@@ -10,7 +10,7 @@ echo "=============================="
 
 # 1. Check/install brew deps
 echo ""
-echo "[1/6] Checking dependencies..."
+echo "[1/5] Checking dependencies..."
 for cmd in cmake python3 rustc cargo; do
     if ! command -v "$cmd" &>/dev/null; then
         echo "  Installing $cmd..."
@@ -29,7 +29,7 @@ rustup target add aarch64-apple-darwin x86_64-apple-darwin 2>/dev/null || true
 
 # 2. Git submodules
 echo ""
-echo "[2/6] Initializing git submodules..."
+echo "[2/5] Initializing git submodules..."
 cd "$ROOT"
 git submodule update --init --recursive 2>/dev/null || {
     echo "  Setting up ThirdParty sources..."
@@ -44,22 +44,17 @@ git submodule update --init --recursive 2>/dev/null || {
 
 # 3. Build third-party
 echo ""
-echo "[3/6] Building third-party libraries (universal2)..."
+echo "[3/5] Building third-party libraries (universal2)..."
 "$SCRIPT_DIR/build_thirdparty_universal.sh"
 
-# 4. Fetch and convert models
+# 4. Build core
 echo ""
-echo "[4/6] Fetching and converting translation models..."
-"$SCRIPT_DIR/fetch_and_convert_models.sh"
-
-# 5. Build core
-echo ""
-echo "[5/6] Building Rust core library (universal2)..."
+echo "[4/5] Building Rust core library (universal2)..."
 "$SCRIPT_DIR/build_core_universal.sh"
 
-# 6. Build app
+# 5. Build app
 echo ""
-echo "[6/6] Building TranslateAnywhere app (Debug)..."
+echo "[5/5] Building TranslateAnywhere app (Debug)..."
 xcodebuild -project "$ROOT/App/TranslateAnywhere.xcodeproj" \
     -scheme TranslateAnywhere \
     -configuration Debug \

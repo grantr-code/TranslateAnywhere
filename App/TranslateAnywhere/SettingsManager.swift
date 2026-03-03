@@ -83,6 +83,16 @@ final class SettingsManager {
         set { defaults.set(newValue, forKey: UDKey.ollamaModel) }
     }
 
+    // MARK: - Local Models
+
+    var localModelId: LocalModelID {
+        get {
+            let raw = defaults.string(forKey: UDKey.localModelId) ?? LocalModelID.nllb13b.rawValue
+            return LocalModelID(rawValue: raw) ?? .nllb13b
+        }
+        set { defaults.set(newValue.rawValue, forKey: UDKey.localModelId) }
+    }
+
     // MARK: - Hotkey Display
 
     /// Returns a human-readable string such as "^T" for the current hotkey.

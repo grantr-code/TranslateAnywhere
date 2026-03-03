@@ -5,7 +5,7 @@
 
 use std::sync::Mutex;
 
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 
 mod translator;
 use translator::{TranslateError, Translator};
@@ -61,7 +61,7 @@ impl TranslateResult {
 
 // ── Global translator instance ──
 
-static TRANSLATOR: OnceCell<Mutex<Translator>> = OnceCell::new();
+static TRANSLATOR: Lazy<Mutex<Option<Translator>>> = Lazy::new(|| Mutex::new(None));
 
 // ── Exported C ABI functions ──
 
@@ -98,12 +98,16 @@ pub extern "C" fn tc_init(model_base_dir: *const u8, dir_len: u32, threads: i32)
 
     match Translator::new(dir_str, thread_count) {
         Ok(t) => {
-            if TRANSLATOR.set(Mutex::new(t)).is_err() {
-                eprintln!("[translator_core] tc_init: already initialized");
-                // Not an error — re-initialization is a no-op.
-                return STATUS_OK;
-            }
-            eprintln!("[translator_core] tc_init: success");
+            Translator::reset_native_cache();
+            let mut guard = match TRANSLATOR.lock() {
+                Ok(g) => g,
+                Err(poisoned) => {
+                    eprintln!("[translator_core] tc_init: translator mutex poisoned, recovering");
+                    poisoned.into_inner()
+                }
+            };
+            *guard = Some(t);
+            eprintln!("[translator_core] tc_init: success (reinitialized)");
             STATUS_OK
         }
         Err(TranslateError::ModelNotFound) => {
@@ -151,20 +155,20 @@ pub extern "C" fn tc_translate(input: *const u8, input_len: u32, direction: i32)
     };
 
     // Check that translator is initialized
-    let translator_mutex = match TRANSLATOR.get() {
-        Some(m) => m,
-        None => {
-            eprintln!("[translator_core] tc_translate: not initialized");
-            return TranslateResult::error(STATUS_NOT_INITIALIZED);
-        }
-    };
-
     // Lock and translate
-    let translator = match translator_mutex.lock() {
+    let translator_guard = match TRANSLATOR.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
             eprintln!("[translator_core] tc_translate: mutex poisoned, recovering");
             poisoned.into_inner()
+        }
+    };
+
+    let translator = match translator_guard.as_ref() {
+        Some(t) => t,
+        None => {
+            eprintln!("[translator_core] tc_translate: not initialized");
+            return TranslateResult::error(STATUS_NOT_INITIALIZED);
         }
     };
 

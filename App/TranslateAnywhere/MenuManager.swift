@@ -1,21 +1,6 @@
 /*
  * MenuManager.swift
  * Builds and manages the NSMenu for the status bar item.
- *
- * Layout:
- *   Translate Selection Now
- *   ──────────────────────
- *   Hotkey: ^T           (disabled label, updates dynamically)
- *   Set Hotkey...
- *   Clear Hotkey
- *   ──────────────────────
- *   Direction >           (submenu)
- *   ──────────────────────
- *   Restore clipboard after capture  (toggle)
- *   ──────────────────────
- *   Backend >             (submenu)
- *   ──────────────────────
- *   Quit
  */
 
 import AppKit
@@ -37,9 +22,14 @@ final class MenuManager: NSObject {
         self.hotkeyManager = hotkeyManager
         super.init()
 
-        // Observe hotkey changes to refresh the menu
         NotificationCenter.default.addObserver(self, selector: #selector(onHotkeyChanged),
                                                name: .hotkeyChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onModelUpdate),
+                                               name: .modelSelectionChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onModelUpdate),
+                                               name: .modelInstallStateChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onModelUpdate),
+                                               name: .modelDownloadProgressChanged, object: nil)
 
         buildMenu()
         logger.info("MenuManager initialized")
@@ -48,10 +38,17 @@ final class MenuManager: NSObject {
     // MARK: - Build Menu
 
     func buildMenu() {
+        Task { [weak self] in
+            await self?.buildMenuAsync()
+        }
+    }
+
+    private func buildMenuAsync() async {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
         let settings = SettingsManager.shared
+        let modelStatuses = await ModelStoreManager.shared.allStatuses()
 
         // ── Translate Selection Now ──
         let translateItem = NSMenuItem(title: "Translate Selection Now",
@@ -105,6 +102,55 @@ final class MenuManager: NSObject {
 
         menu.addItem(.separator())
 
+        // ── Models submenu ──
+        let modelsItem = NSMenuItem(title: "Models", action: nil, keyEquivalent: "")
+        let modelsSubmenu = NSMenu()
+
+        let activeModelItem = NSMenuItem(title: "Active Model", action: nil, keyEquivalent: "")
+        let activeModelSubmenu = NSMenu()
+        for model in LocalModelID.allCases {
+            let status = modelStatuses[model] ?? LocalModelStatus(state: .notInstalled, progress: 0, lastError: nil)
+            let title = "\(model.label) \(statusBadge(for: status))"
+            let item = NSMenuItem(title: title, action: #selector(setActiveModel(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = model.rawValue
+            item.state = (settings.localModelId == model) ? .on : .off
+            activeModelSubmenu.addItem(item)
+        }
+        activeModelItem.submenu = activeModelSubmenu
+        modelsSubmenu.addItem(activeModelItem)
+
+        modelsSubmenu.addItem(.separator())
+
+        let downloadsItem = NSMenuItem(title: "Downloads", action: nil, keyEquivalent: "")
+        let downloadsSubmenu = NSMenu()
+
+        for model in LocalModelID.allCases {
+            let status = modelStatuses[model] ?? LocalModelStatus(state: .notInstalled, progress: 0, lastError: nil)
+            let title = downloadTitle(for: model, status: status)
+            let item = NSMenuItem(title: title, action: #selector(downloadModel(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = model.rawValue
+            item.isEnabled = status.state != .downloading
+            downloadsSubmenu.addItem(item)
+        }
+
+        downloadsSubmenu.addItem(.separator())
+
+        let downloadAll = NSMenuItem(title: "Download All Models",
+                                     action: #selector(downloadAllModels),
+                                     keyEquivalent: "")
+        downloadAll.target = self
+        downloadsSubmenu.addItem(downloadAll)
+
+        downloadsItem.submenu = downloadsSubmenu
+        modelsSubmenu.addItem(downloadsItem)
+
+        modelsItem.submenu = modelsSubmenu
+        menu.addItem(modelsItem)
+
+        menu.addItem(.separator())
+
         // ── Toggle items ──
         let restoreClip = NSMenuItem(title: "Restore clipboard after capture",
                                      action: #selector(toggleRestoreClipboard(_:)),
@@ -140,7 +186,34 @@ final class MenuManager: NSObject {
         menu.addItem(quit)
 
         statusItem.menu = menu
-        logger.info("Menu built")
+    }
+
+    private func statusBadge(for status: LocalModelStatus) -> String {
+        switch status.state {
+        case .installed:
+            return "(Installed)"
+        case .downloading:
+            let p = Int((status.progress * 100).rounded())
+            return "(\(p)%)"
+        case .failed:
+            return "(Failed)"
+        case .notInstalled:
+            return "(Not installed)"
+        }
+    }
+
+    private func downloadTitle(for model: LocalModelID, status: LocalModelStatus) -> String {
+        switch status.state {
+        case .installed:
+            return "\(model.label): Installed"
+        case .downloading:
+            let p = Int((status.progress * 100).rounded())
+            return "\(model.label): Downloading \(p)%"
+        case .failed:
+            return "Retry \(model.label) (Failed)"
+        case .notInstalled:
+            return "Download \(model.label)"
+        }
     }
 
     // MARK: - Actions
@@ -182,6 +255,56 @@ final class MenuManager: NSObject {
         buildMenu()
     }
 
+    @objc private func setActiveModel(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let model = LocalModelID(rawValue: raw) else { return }
+
+        SettingsManager.shared.localModelId = model
+        NotificationCenter.default.post(name: .modelSelectionChanged, object: nil)
+
+        Task {
+            if !(await ModelStoreManager.shared.isInstalled(model)) {
+                await MainActor.run {
+                    let alert = NSAlert()
+                    alert.messageText = "Model Not Installed"
+                    alert.informativeText = "\(model.label) is selected but not installed. Download now?"
+                    alert.alertStyle = .informational
+                    alert.addButton(withTitle: "Download")
+                    alert.addButton(withTitle: "Cancel")
+                    let response = alert.runModal()
+                    if response == .alertFirstButtonReturn {
+                        Task {
+                            await ModelStoreManager.shared.installModel(model)
+                        }
+                    }
+                }
+            }
+        }
+
+        logger.info("Menu: Active local model set to \(model.rawValue, privacy: .public)")
+        buildMenu()
+    }
+
+    @objc private func downloadModel(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let model = LocalModelID(rawValue: raw) else { return }
+
+        Task {
+            await ModelStoreManager.shared.installModel(model)
+        }
+
+        logger.info("Menu: Download requested for model \(model.rawValue, privacy: .public)")
+        buildMenu()
+    }
+
+    @objc private func downloadAllModels() {
+        Task {
+            await ModelStoreManager.shared.installAllModels()
+        }
+        logger.info("Menu: Download all models requested")
+        buildMenu()
+    }
+
     @objc private func toggleRestoreClipboard(_ sender: NSMenuItem) {
         let settings = SettingsManager.shared
         settings.restoreClipboard = !settings.restoreClipboard
@@ -205,6 +328,10 @@ final class MenuManager: NSObject {
     // MARK: - Observers
 
     @objc private func onHotkeyChanged() {
+        buildMenu()
+    }
+
+    @objc private func onModelUpdate() {
         buildMenu()
     }
 }

@@ -21,7 +21,7 @@
 		A0000000000000000000000C /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010C /* Carbon.framework */; };
 		A0000000000000000000000D /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010D /* AppKit.framework */; };
 		A0000000000000000000000E /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010E /* ApplicationServices.framework */; };
-		A0000000000000000000000F /* models in Resources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000010F /* models */; };
+		A00000000000000000000021 /* ModelStoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000121 /* ModelStoreManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -41,7 +41,6 @@
 		A0000000000000000000010C /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		A0000000000000000000010D /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		A0000000000000000000010E /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
-		A0000000000000000000010F /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = ../models; sourceTree = SOURCE_ROOT; };
 		A00000000000000000000110 /* TranslateAnywhere.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TranslateAnywhere.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000111 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A00000000000000000000112 /* TranslateAnywhere.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TranslateAnywhere.entitlements; sourceTree = "<group>"; };
@@ -49,6 +48,7 @@
 		A00000000000000000000114 /* CoreBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoreBridge.h; sourceTree = "<group>"; };
 		A00000000000000000000115 /* TranslateAnywhere-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "TranslateAnywhere-Bridging-Header.h"; sourceTree = "<group>"; };
 		A00000000000000000000120 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		A00000000000000000000121 /* ModelStoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStoreManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,7 +73,6 @@
 				A00000000000000000000302 /* Frameworks */,
 				A00000000000000000000303 /* Products */,
 				A00000000000000000000113 /* translator_core.h */,
-				A0000000000000000000010F /* models */,
 			);
 			sourceTree = "<group>";
 		};
@@ -94,6 +93,7 @@
 				A00000000000000000000114 /* CoreBridge.h */,
 				A00000000000000000000115 /* TranslateAnywhere-Bridging-Header.h */,
 				A00000000000000000000120 /* main.swift */,
+				A00000000000000000000121 /* ModelStoreManager.swift */,
 			);
 			path = TranslateAnywhere;
 			sourceTree = "<group>";
@@ -175,7 +175,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A0000000000000000000000F /* models in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -196,6 +195,7 @@
 				A00000000000000000000009 /* ClipboardManager.swift in Sources */,
 				A0000000000000000000000A /* AccessibilityHelper.swift in Sources */,
 				A00000000000000000000020 /* main.swift in Sources */,
+				A00000000000000000000021 /* ModelStoreManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

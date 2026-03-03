@@ -40,10 +40,67 @@ enum TranslationBackend: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .local:  return "Local (OPUS-MT)"
+        case .local:  return "Local"
         case .ollama: return "Ollama"
         }
     }
+}
+
+// MARK: - Local Model Selection
+
+enum LocalModelFamily: String, CaseIterable, Codable, Sendable {
+    case opus
+    case nllb
+}
+
+enum LocalModelID: String, CaseIterable, Codable, Sendable {
+    case opusBase = "opus_base"
+    case opusBig  = "opus_big"
+    case nllb13b  = "nllb_1_3b"
+    case nllb33b  = "nllb_3_3b"
+
+    var label: String {
+        switch self {
+        case .opusBase: return "OPUS Base"
+        case .opusBig:  return "OPUS Big"
+        case .nllb13b:  return "NLLB 1.3B"
+        case .nllb33b:  return "NLLB 3.3B"
+        }
+    }
+
+    var family: LocalModelFamily {
+        switch self {
+        case .opusBase, .opusBig:
+            return .opus
+        case .nllb13b, .nllb33b:
+            return .nllb
+        }
+    }
+
+    var approximateSizeLabel: String {
+        switch self {
+        case .opusBase: return "~600 MB"
+        case .opusBig:  return "~1.3 GB"
+        case .nllb13b:  return "~2.7 GB"
+        case .nllb33b:  return "~6.8 GB"
+        }
+    }
+
+    var licenseLabel: String {
+        switch self {
+        case .opusBase, .opusBig:
+            return "CC-BY-4.0"
+        case .nllb13b, .nllb33b:
+            return "CC-BY-NC-4.0"
+        }
+    }
+}
+
+enum ModelInstallState: String, Sendable {
+    case notInstalled
+    case downloading
+    case installed
+    case failed
 }
 
 // MARK: - Translate Status (mirrors C enum)
@@ -80,6 +137,7 @@ enum UDKey {
     static let maxInputChars        = "maxInputChars"        // Int  (default: 8000)
     static let ollamaEndpoint       = "ollamaEndpoint"       // String
     static let ollamaModel          = "ollamaModel"          // String
+    static let localModelId         = "localModelId"         // String (LocalModelID.rawValue)
 
     /// Register defaults on app launch.
     static func registerDefaults() {
@@ -92,6 +150,7 @@ enum UDKey {
             maxInputChars:       8000,
             ollamaEndpoint:      "http://localhost:11434",
             ollamaModel:         "llama3",
+            localModelId:        LocalModelID.nllb13b.rawValue,
         ])
     }
 }
@@ -101,6 +160,9 @@ enum UDKey {
 extension Notification.Name {
     static let hotkeyTriggered       = Notification.Name("TranslateAnywhere.hotkeyTriggered")
     static let hotkeyChanged         = Notification.Name("TranslateAnywhere.hotkeyChanged")
+    static let modelSelectionChanged = Notification.Name("TranslateAnywhere.modelSelectionChanged")
+    static let modelInstallStateChanged = Notification.Name("TranslateAnywhere.modelInstallStateChanged")
+    static let modelDownloadProgressChanged = Notification.Name("TranslateAnywhere.modelDownloadProgressChanged")
 }
 
 // MARK: - Constants
@@ -120,4 +182,5 @@ enum AppConstants {
     static let popupAutoHideSeconds: TimeInterval = 4.0
     static let defaultHotkeyKeyCode: UInt32   = 17   // "t"
     static let defaultHotkeyModifiers: UInt32 = 0x0900 // Ctrl+Option
+    static let modelsManifestURL = "https://huggingface.co/grantr-code/translateanywhere-models/resolve/main/manifest-v1.json"
 }

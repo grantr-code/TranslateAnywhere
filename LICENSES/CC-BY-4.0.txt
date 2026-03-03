@@ -3,6 +3,8 @@ Creative Commons Attribution 4.0 International License (CC-BY-4.0)
 This license applies to the OPUS-MT translation models:
   - Helsinki-NLP/opus-mt-en-ru
   - Helsinki-NLP/opus-mt-ru-en
+  - Helsinki-NLP/opus-mt-en-zle
+  - Helsinki-NLP/opus-mt-zle-en
 
 Full license text: https://creativecommons.org/licenses/by/4.0/legalcode
 

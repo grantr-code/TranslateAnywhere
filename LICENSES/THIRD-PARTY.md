@@ -29,14 +29,26 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 ---
 
-## OPUS-MT Models
+## OPUS-MT Models (Runtime Download)
 
 - **Project:** [Helsinki-NLP/OPUS-MT](https://github.com/Helsinki-NLP/OPUS-MT)
 - **License:** Creative Commons Attribution 4.0 International (CC-BY-4.0)
 - **Copyright:** Copyright Helsinki-NLP / University of Helsinki
-- **Usage:** The pre-trained `opus-mt-en-ru` and `opus-mt-ru-en` machine translation models are downloaded from Hugging Face and converted to CTranslate2 format. These models provide the offline English-Russian and Russian-English translation capability.
+- **Usage:** The pre-trained OPUS-MT English/Russian pairs are downloaded on demand from a model artifact repository and loaded at runtime via CTranslate2. The app supports both:
+  - `opus-mt-en-ru` + `opus-mt-ru-en` (OPUS Base)
+  - `opus-mt-en-zle` + `opus-mt-zle-en` (OPUS Big)
 - **License file:** [CC-BY-4.0.txt](CC-BY-4.0.txt)
 - **Attribution:** Jorg Tiedemann and Santhosh Thottingal, "OPUS-MT -- Building open translation services for the World," Proceedings of the 22nd Annual Conference of the European Association for Machine Translation, 2020.
+
+---
+
+## NLLB Models (Runtime Download)
+
+- **Project:** [Meta AI NLLB](https://github.com/facebookresearch/fairseq/tree/main/examples/nllb)
+- **Artifacts used:** `OpenNMT/nllb-200-distilled-1.3B-ct2-int8`, `OpenNMT/nllb-200-3.3B-ct2-int8`
+- **License:** Creative Commons Attribution-NonCommercial 4.0 International (CC-BY-NC-4.0)
+- **Usage:** Optional, heavier multilingual EN<->RU translation models downloaded on demand and run locally via CTranslate2.
+- **License file:** [CC-BY-NC-4.0.txt](CC-BY-NC-4.0.txt)
 
 ---
 
@@ -79,3 +91,4 @@ The complete license texts referenced above are included in this directory:
 - `MIT.txt` -- MIT License (CTranslate2, TranslateAnywhere, Rust crates)
 - `APACHE-2.0.txt` -- Apache License, Version 2.0 (SentencePiece, Rust crates)
 - `CC-BY-4.0.txt` -- Creative Commons Attribution 4.0 International (OPUS-MT models)
+- `CC-BY-NC-4.0.txt` -- Creative Commons Attribution-NonCommercial 4.0 International (NLLB models)

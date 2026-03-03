@@ -42,6 +42,12 @@ fi
 echo "=== App binary ==="
 lipo -info "$APP_PATH/Contents/MacOS/TranslateAnywhere"
 
+if [ -d "$APP_PATH/Contents/Resources/models" ]; then
+    echo "ERROR: App bundle still contains bundled models at Contents/Resources/models"
+    echo "Local models must be downloaded at runtime and not shipped in the DMG."
+    exit 1
+fi
+
 echo "[4/4] Creating DMG..."
 mkdir -p "$ROOT/dist"
 DMG_PATH="$ROOT/dist/TranslateAnywhere.dmg"
