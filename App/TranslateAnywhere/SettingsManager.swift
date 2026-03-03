@@ -58,24 +58,9 @@ final class SettingsManager {
 
     // MARK: - Toggles
 
-    var autoCopyToClipboard: Bool {
-        get { defaults.bool(forKey: UDKey.autoCopyToClipboard) }
-        set { defaults.set(newValue, forKey: UDKey.autoCopyToClipboard) }
-    }
-
     var restoreClipboard: Bool {
         get { defaults.bool(forKey: UDKey.restoreClipboard) }
         set { defaults.set(newValue, forKey: UDKey.restoreClipboard) }
-    }
-
-    var autoReplaceEnToRu: Bool {
-        get { defaults.bool(forKey: UDKey.autoReplaceEnToRu) }
-        set { defaults.set(newValue, forKey: UDKey.autoReplaceEnToRu) }
-    }
-
-    var autoReplaceRuToEn: Bool {
-        get { defaults.bool(forKey: UDKey.autoReplaceRuToEn) }
-        set { defaults.set(newValue, forKey: UDKey.autoReplaceRuToEn) }
     }
 
     var maxInputChars: Int {

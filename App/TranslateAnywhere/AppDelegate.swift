@@ -5,20 +5,13 @@
  * LSUIElement behavior (no dock icon) is configured via Info.plist.
  * The app runs entirely from a status bar item with an SF Symbol icon.
  *
- * State machine for hotkey triggers:
- *   - Panel NOT showing: capture text -> detect direction -> translate
- *       - If EN->RU and autoReplaceEnToRu ON: auto-replace, no panel
- *       - If RU->EN and autoReplaceRuToEn ON: auto-replace, no panel
- *       - Otherwise: show panel with translation
- *   - Panel IS showing and hotkey pressed: primary action
- *       - If not yet replaced: replace selection
- *       - If already replaced: undo replacement
+ * Hotkey flow: capture selected text -> translate -> replace selection in-place.
+ * If translation fails or no text is selected, play a system beep.
  */
 
 import AppKit
 import os.log
 
-@main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
@@ -30,20 +23,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuManager: MenuManager!
     private var hotkeyManager: HotkeyManager!
     private var translatorService: TranslatorService!
-    private var translationPanel: TranslationPanel!
     private var selectionCapture: SelectionCapture!
+
+    nonisolated override init() {
+        super.init()
+    }
 
     // MARK: - State
 
-    /// The original text that was captured (before translation/replacement).
-    private var capturedOriginalText: String?
-    /// The translated text currently shown or applied.
-    private var currentTranslation: String?
-    /// The direction that was detected/used for the current translation.
-    private var currentDetectedDirection: TranslateDirection = .autoDetect
-    /// Whether the panel has already replaced the selection.
-    private var hasReplacedSelection = false
-    /// Whether a translation is currently in flight.
+    /// Whether a translation is currently in flight (debounce guard).
     private var isTranslating = false
 
     // MARK: - Application Lifecycle
@@ -66,7 +54,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Initialize components
         hotkeyManager = HotkeyManager()
         translatorService = TranslatorService()
-        translationPanel = TranslationPanel()
         selectionCapture = SelectionCapture()
         menuManager = MenuManager(statusItem: statusItem, hotkeyManager: hotkeyManager)
 
@@ -102,15 +89,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         nc.addObserver(self, selector: #selector(onHotkeyTriggered),
                        name: .hotkeyTriggered, object: nil)
 
-        nc.addObserver(self, selector: #selector(onReplaceSelection(_:)),
-                       name: .replaceSelection, object: nil)
-
-        nc.addObserver(self, selector: #selector(onUndoReplace),
-                       name: .undoReplace, object: nil)
-
-        nc.addObserver(self, selector: #selector(onFlipDirection),
-                       name: .flipDirection, object: nil)
-
         nc.addObserver(self, selector: #selector(onHotkeyChanged),
                        name: .hotkeyChanged, object: nil)
     }
@@ -120,14 +98,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func onHotkeyTriggered() {
         logger.info("Hotkey triggered")
 
-        // State machine: panel visible?
-        if translationPanel.isVisible {
-            logger.info("Panel is visible -> primary action")
-            handlePanelPrimaryAction()
-            return
-        }
-
-        // Panel not visible -> capture and translate
         guard !isTranslating else {
             logger.info("Translation already in progress, ignoring")
             return
@@ -136,23 +106,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         captureAndTranslate()
     }
 
-    // MARK: - Capture & Translate
+    // MARK: - Capture, Translate, Replace
 
     private func captureAndTranslate() {
-        logger.info("Capturing selection...")
         isTranslating = true
 
         Task {
-            // Capture selected text using SelectionCapture (async)
+            defer { isTranslating = false }
+
+            // 1. Capture selected text
             guard let text = await selectionCapture.captureSelectedText(), !text.isEmpty else {
                 logger.warning("No text captured")
-                isTranslating = false
+                NSSound.beep()
                 return
             }
 
             logger.info("Captured \(text.count) characters")
 
-            // Truncate if needed
+            // 2. Truncate if needed
             let settings = SettingsManager.shared
             var inputText = text
             if inputText.count > settings.maxInputChars {
@@ -160,181 +131,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 inputText = String(inputText.prefix(settings.maxInputChars))
             }
 
-            capturedOriginalText = inputText
-            hasReplacedSelection = false
-            selectionCapture.resetUndoState()
-
-            // Determine direction
-            let configuredDirection = settings.direction
-
-            // Translate
+            // 3. Translate
             let result = await translatorService.translate(
-                text: inputText, direction: configuredDirection)
-
-            isTranslating = false
+                text: inputText, direction: settings.direction)
 
             guard result.status == .ok else {
                 logger.error("Translation failed: status=\(result.status.rawValue)")
-                // Show panel with error
-                translationPanel.show(
-                    original: inputText,
-                    translation: "Translation error (\(result.status.rawValue))",
-                    direction: configuredDirection,
-                    detectedDirection: result.detectedDirection)
+                NSSound.beep()
                 return
             }
-
-            currentTranslation = result.text
-            currentDetectedDirection = result.detectedDirection
 
             logger.info("Translation complete: direction=\(result.detectedDirection.label)")
 
-            // Check auto-replace conditions
-            let detectedDir = result.detectedDirection
-            if detectedDir == .enToRu && settings.autoReplaceEnToRu {
-                logger.info("Auto-replacing EN->RU translation")
-                await autoReplace(with: result.text)
-                return
-            }
-            if detectedDir == .ruToEn && settings.autoReplaceRuToEn {
-                logger.info("Auto-replacing RU->EN translation")
-                await autoReplace(with: result.text)
-                return
-            }
-
-            // Show panel
-            translationPanel.show(
-                original: inputText,
-                translation: result.text,
-                direction: configuredDirection,
-                detectedDirection: result.detectedDirection)
-        }
-    }
-
-    // MARK: - Auto Replace
-
-    private func autoReplace(with text: String) async {
-        let success = await selectionCapture.replaceSelection(with: text)
-        if success {
-            hasReplacedSelection = true
-            logger.info("Auto-replace successful")
-        } else {
-            logger.error("Auto-replace failed, showing panel instead")
-            translationPanel.show(
-                original: capturedOriginalText ?? "",
-                translation: text,
-                direction: currentDetectedDirection,
-                detectedDirection: currentDetectedDirection)
-        }
-    }
-
-    // MARK: - Panel Primary Action
-
-    private func handlePanelPrimaryAction() {
-        Task {
-            if !hasReplacedSelection {
-                // Replace
-                guard let translation = currentTranslation else {
-                    logger.warning("No translation available for replace")
-                    return
-                }
-                logger.info("Panel primary action -> replace selection")
-                let success = await selectionCapture.replaceSelection(with: translation)
-                if success {
-                    hasReplacedSelection = true
-                    logger.info("Selection replaced successfully")
-                } else {
-                    logger.error("Failed to replace selection")
-                }
-                translationPanel.dismiss()
-            } else {
-                // Already replaced -> undo
-                logger.info("Panel primary action -> undo")
-                await performUndo()
-            }
-        }
-    }
-
-    // MARK: - Replace / Undo Notifications
-
-    @objc private func onReplaceSelection(_ notification: Notification) {
-        guard let text = notification.userInfo?["text"] as? String else {
-            logger.warning("replaceSelection notification missing text")
-            return
-        }
-        logger.info("Replace selection with \(text.count) chars")
-
-        Task {
-            let success = await selectionCapture.replaceSelection(with: text)
+            // 4. Replace selection in-place
+            let success = await selectionCapture.replaceSelection(with: result.text)
             if success {
-                hasReplacedSelection = true
-                logger.info("Selection replaced via panel action")
+                logger.info("Selection replaced successfully")
             } else {
-                logger.error("Failed to replace selection via panel action")
+                logger.error("Failed to replace selection")
+                NSSound.beep()
             }
-            translationPanel.dismiss()
-        }
-    }
-
-    @objc private func onUndoReplace() {
-        logger.info("Undo replace requested")
-        Task {
-            await performUndo()
-        }
-    }
-
-    private func performUndo() async {
-        await selectionCapture.undoLastReplacement()
-        hasReplacedSelection = false
-        logger.info("Undo complete")
-        translationPanel.dismiss()
-    }
-
-    // MARK: - Flip Direction
-
-    @objc private func onFlipDirection() {
-        logger.info("Flip direction requested")
-
-        guard let originalText = capturedOriginalText else {
-            logger.warning("No original text to re-translate")
-            return
-        }
-
-        // Flip the direction
-        let newDirection: TranslateDirection
-        switch currentDetectedDirection {
-        case .enToRu:
-            newDirection = .ruToEn
-        case .ruToEn:
-            newDirection = .enToRu
-        case .autoDetect:
-            newDirection = .enToRu // default flip from auto
-        }
-
-        logger.info("Flipping direction to \(newDirection.label)")
-        translationPanel.updateStatus("Translating...")
-        isTranslating = true
-
-        Task {
-            let result = await translatorService.translate(text: originalText, direction: newDirection)
-            isTranslating = false
-
-            guard result.status == .ok else {
-                logger.error("Flip translation failed: status=\(result.status.rawValue)")
-                translationPanel.updateStatus("Translation failed")
-                return
-            }
-
-            currentTranslation = result.text
-            currentDetectedDirection = result.detectedDirection
-            hasReplacedSelection = false
-            selectionCapture.resetUndoState()
-
-            translationPanel.show(
-                original: originalText,
-                translation: result.text,
-                direction: newDirection,
-                detectedDirection: result.detectedDirection)
         }
     }
 
@@ -342,6 +158,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func onHotkeyChanged() {
         logger.info("Hotkey changed notification received")
-        // Menu manager handles its own rebuild; nothing else needed here
     }
 }

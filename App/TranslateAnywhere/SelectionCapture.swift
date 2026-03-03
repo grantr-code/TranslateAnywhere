@@ -3,8 +3,8 @@
  * TranslateAnywhere
  *
  * Captures the currently selected text in the frontmost application via
- * simulated Cmd+C, replaces the selection with translated text via Cmd+V,
- * and provides single-level undo via Cmd+Z.  Falls back to the
+ * simulated Cmd+C and replaces the selection with translated text via Cmd+V.
+ * Falls back to the
  * Accessibility API when clipboard capture is impossible (secure input
  * mode, apps that block Cmd+C, etc.).
  *
@@ -25,20 +25,6 @@ final class SelectionCapture {
         category: "capture"
     )
     private let clipboardManager = ClipboardManager()
-
-    /// Whether the most recent `replaceSelection` succeeded and has not
-    /// yet been undone.
-    private var didReplace = false
-
-    // MARK: - Public API
-
-    /// Whether a replacement was performed that can be undone.
-    var canUndo: Bool { didReplace }
-
-    /// Reset undo state (e.g. when the user dismisses the panel).
-    func resetUndoState() {
-        didReplace = false
-    }
 
     // MARK: - Capture
 
@@ -158,36 +144,7 @@ final class SelectionCapture {
             clipboardManager.restore(saved)
         }
 
-        didReplace = true
         logger.info("Selection replaced successfully")
         return true
-    }
-
-    // MARK: - Undo
-
-    /// Undo the last replacement by sending Cmd+Z to the frontmost app.
-    func undoLastReplacement() async {
-        guard didReplace else {
-            logger.debug("undoLastReplacement called but nothing to undo")
-            return
-        }
-
-        logger.info("Undoing last replacement (Cmd+Z)")
-
-        let source = CGEventSource(stateID: .hidSystemState)
-
-        // Virtual key 6 = "z"
-        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 6, keyDown: true)
-        keyDown?.flags = .maskCommand
-        keyDown?.post(tap: .cghidEventTap)
-
-        try? await Task.sleep(nanoseconds: 20_000_000) // 20 ms between down & up
-
-        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 6, keyDown: false)
-        keyUp?.flags = .maskCommand
-        keyUp?.post(tap: .cghidEventTap)
-
-        didReplace = false
-        logger.info("Undo sent")
     }
 }

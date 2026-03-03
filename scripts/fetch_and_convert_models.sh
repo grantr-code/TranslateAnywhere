@@ -8,15 +8,19 @@ VENV_DIR="$SCRIPT_DIR/.venv"
 
 echo "Fetching and converting OPUS-MT models..."
 
-# Create venv
+# Create venv (prefer python3.12 for torch compatibility)
+PYTHON_BIN="python3"
+if command -v python3.12 &>/dev/null; then
+    PYTHON_BIN="python3.12"
+fi
 if [ ! -d "$VENV_DIR" ]; then
-    echo "  Creating Python venv..."
-    python3 -m venv "$VENV_DIR"
+    echo "  Creating Python venv using $PYTHON_BIN..."
+    "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
 
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip -q
-pip install ctranslate2 transformers sentencepiece -q
+pip install "ctranslate2==3.24.0" "transformers==4.36.0" sentencepiece "torch==2.2.2" "numpy<2" -q
 
 mkdir -p "$MODEL_DIR"
 

@@ -16,12 +16,15 @@ Core/translator_core/target/
 ThirdParty/CTranslate2/
 ThirdParty/sentencepiece/
 ThirdParty/build/
+ThirdParty/_build/
+ThirdParty/_install/
 
 # Models (large binary files)
 models/
 
 # Python venv for model conversion
 scripts/.venv/
+scripts/.conda-env/
 
 # OS
 .DS_Store

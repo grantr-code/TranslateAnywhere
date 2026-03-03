@@ -1,21 +1,18 @@
 # TranslateAnywhere
 
-A macOS menu-bar application that translates between Russian and English via a global hotkey. Select text in any application, press the hotkey, and get an instant translation -- all without leaving your current window.
+A macOS menu-bar application that translates between Russian and English via a global hotkey. Select text in any application, press the hotkey, and the selected text is replaced with the translation -- all without leaving your current window.
 
-TranslateAnywhere runs entirely offline using OPUS-MT models through CTranslate2, with an optional Ollama backend for cloud-based LLM translation.
+TranslateAnywhere runs entirely offline using OPUS-MT models through CTranslate2, with an optional Ollama backend for LLM-based translation.
 
 ## Features
 
 - **Offline OPUS-MT translation** -- Helsinki-NLP OPUS-MT models run locally via CTranslate2 and SentencePiece. No internet required.
 - **Configurable global hotkey** -- Default Ctrl+Option+T. Change it to any combination that includes Control or Command.
-- **Spotlight-style floating panel** -- A minimal overlay shows the translation result without stealing focus from your current app.
+- **Direct in-place replacement** -- The selected text is replaced with the translation directly in the source application via simulated Cmd+V.
 - **Auto-detect direction** -- Automatically determines whether the selected text is Russian or English and translates in the correct direction.
-- **Universal binary (universal2)** -- Native support for both Apple Silicon (arm64) and Intel (x86_64) Macs.
 - **Ollama backend option** -- Switch to an Ollama-powered LLM backend for translation when preferred.
 - **Clipboard preservation** -- Saves and restores your clipboard contents around the capture/replace cycle.
 - **Accessibility API fallback** -- Falls back to the macOS Accessibility API when clipboard-based text capture is unavailable (secure input mode, non-standard text fields).
-- **Auto-replace in place** -- Optionally replaces the selected text with the translation directly in the source application.
-- **Single-level undo** -- Cmd+Z support to revert the last in-place replacement.
 
 ## Requirements
 
@@ -23,17 +20,19 @@ TranslateAnywhere runs entirely offline using OPUS-MT models through CTranslate2
 |---|---|
 | macOS | 15.0 (Sequoia) or later |
 | Xcode | 15.0 or later |
-| Rust toolchain | stable (with `aarch64-apple-darwin` and `x86_64-apple-darwin` targets) |
+| Rust toolchain | stable (Homebrew `rust` or rustup) |
 | Python 3 | 3.9+ (for model conversion via CTranslate2 Python package) |
 | CMake | 3.18+ (for building CTranslate2 and SentencePiece) |
-| Disk space | ~500 MB for downloaded and converted OPUS-MT models |
+| Disk space | ~600 MB for downloaded and converted OPUS-MT models |
+
+> **Note:** Universal2 (arm64 + x86_64) builds require a rustup-managed Rust toolchain with both targets installed. Homebrew Rust builds for the host architecture only.
 
 ## Quick Start
 
 ```bash
 # Clone the repository with submodules
-git clone --recursive https://github.com/your-org/translate.git
-cd translate
+git clone --recursive https://github.com/grantr-code/TranslateAnywhere.git
+cd TranslateAnywhere
 
 # Run the full development setup (installs deps, builds everything)
 ./scripts/dev_setup.sh
@@ -50,9 +49,9 @@ The all-in-one development setup script. It performs the following steps in orde
 
 1. **Checks dependencies** -- Verifies that `cmake`, `python3`, `rustc`, and `cargo` are installed. Installs missing tools via Homebrew or rustup.
 2. **Initializes git submodules** -- Clones CTranslate2 and SentencePiece into `ThirdParty/` if not already present.
-3. **Builds third-party libraries** -- Runs `build_thirdparty_universal.sh` to compile CTranslate2 and SentencePiece as universal (arm64 + x86_64) static libraries.
+3. **Builds third-party libraries** -- Runs `build_thirdparty_universal.sh` to compile CTranslate2 and SentencePiece as static libraries.
 4. **Fetches and converts models** -- Runs `fetch_and_convert_models.sh` to download Helsinki-NLP OPUS-MT models and convert them to CTranslate2 format.
-5. **Builds the Rust core** -- Runs `build_core_universal.sh` to compile `translator_core` as a universal static library.
+5. **Builds the Rust core** -- Runs `build_core_universal.sh` to compile `translator_core` as a static library.
 6. **Builds the Xcode project** -- Runs `xcodebuild` in Debug configuration.
 
 ```bash
@@ -61,7 +60,7 @@ The all-in-one development setup script. It performs the following steps in orde
 
 ### `scripts/build_thirdparty_universal.sh`
 
-Compiles CTranslate2 and SentencePiece from source for both `arm64` and `x86_64` architectures, then merges the resulting static libraries with `lipo` into universal binaries under `build/lib/`.
+Compiles CTranslate2 and SentencePiece from source, then merges the resulting static libraries with `lipo` into universal binaries under `ThirdParty/build/lib/`.
 
 ```bash
 ./scripts/build_thirdparty_universal.sh
@@ -69,7 +68,7 @@ Compiles CTranslate2 and SentencePiece from source for both `arm64` and `x86_64`
 
 ### `scripts/fetch_and_convert_models.sh`
 
-Downloads the Helsinki-NLP OPUS-MT models (`opus-mt-en-ru` and `opus-mt-ru-en`) from Hugging Face, then converts them to CTranslate2 format using the `ct2-opus-mt-converter` Python tool. Outputs are placed in `models/opus-mt-en-ru/` and `models/opus-mt-ru-en/`, each containing the CTranslate2 model files and `source.spm` / `target.spm` SentencePiece models.
+Downloads the Helsinki-NLP OPUS-MT models (`opus-mt-en-ru` and `opus-mt-ru-en`) from Hugging Face, then converts them to CTranslate2 format. Outputs are placed in `models/opus-mt-en-ru/` and `models/opus-mt-ru-en/`, each containing the CTranslate2 model files and `source.spm` / `target.spm` SentencePiece models.
 
 ```bash
 ./scripts/fetch_and_convert_models.sh
@@ -77,7 +76,7 @@ Downloads the Helsinki-NLP OPUS-MT models (`opus-mt-en-ru` and `opus-mt-ru-en`) 
 
 ### `scripts/build_core_universal.sh`
 
-Compiles the Rust `translator_core` crate as a static library (`staticlib`) for both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets, then merges them into a universal binary at `build/lib/libtranslator_core.a`.
+Compiles the Rust `translator_core` crate as a static library (`staticlib`) and places it at `build/lib/libtranslator_core.a`.
 
 ```bash
 ./scripts/build_core_universal.sh
@@ -96,7 +95,7 @@ Packages the built application into a distributable `.dmg` disk image in the `di
 ```
 +-------------------+
 |   macOS Menu Bar  |
-|   (SwiftUI / NSMenu)
+|   (NSMenu)        |
 +--------+----------+
          |
 +--------v----------+       +---------------------+
@@ -134,19 +133,22 @@ Packages the built application into a distributable `.dmg` disk image in the `di
 4. Rust resolves auto-detect direction via `tc_is_russian` (Cyrillic character ratio analysis).
 5. Rust calls into the C++ wrapper (`cpp_translate`), which loads CTranslate2 models lazily and runs SentencePiece tokenization + CTranslate2 inference.
 6. The translated UTF-8 string is returned back up through the C ABI.
-7. The Spotlight-style panel displays the result; optionally the selection is replaced in-place via simulated Cmd+V.
+7. `SelectionCapture` replaces the selected text in-place via simulated Cmd+V.
 
 ## Repository Layout
 
 ```
-translate/
+TranslateAnywhere/
 ├── App/
 │   ├── TranslateAnywhere/
 │   │   ├── AccessibilityHelper.swift   # AX API fallback for text capture
+│   │   ├── AppDelegate.swift           # App lifecycle and hotkey dispatch
 │   │   ├── ClipboardManager.swift      # Save/restore system clipboard
 │   │   ├── Contracts.swift             # Shared enums, UserDefaults keys, constants
 │   │   ├── HotkeyManager.swift         # Carbon global hotkey registration
 │   │   ├── Info.plist                  # App bundle configuration
+│   │   ├── main.swift                  # App entry point
+│   │   ├── MenuManager.swift           # Status bar menu
 │   │   ├── SelectionCapture.swift      # Text capture via Cmd+C / AX fallback
 │   │   ├── SettingsManager.swift       # UserDefaults wrapper singleton
 │   │   ├── TranslateAnywhere.entitlements
@@ -154,16 +156,15 @@ translate/
 │   └── TranslateAnywhere.xcodeproj/
 ├── Core/
 │   ├── native/
-│   │   └── ctranslate2_wrapper.h       # C-callable wrapper for CTranslate2 + SentencePiece
+│   │   ├── ctranslate2_wrapper.cpp     # C++ CTranslate2 + SentencePiece wrapper
+│   │   └── ctranslate2_wrapper.h       # C-callable header
 │   └── translator_core/
 │       ├── Cargo.toml                  # Rust crate manifest (staticlib)
 │       ├── include/
 │       │   └── translator_core.h       # Public C ABI header
-│       ├── src/
-│       │   ├── lib.rs                  # Exported C ABI functions
-│       │   └── translator.rs           # Internal CTranslate2 FFI bridge
-│       └── tests/
-│           └── integration_test.rs     # Rust integration tests
+│       └── src/
+│           ├── lib.rs                  # Exported C ABI functions
+│           └── translator.rs           # Internal CTranslate2 FFI bridge
 ├── LICENSES/
 │   ├── MIT.txt                         # MIT License
 │   ├── APACHE-2.0.txt                  # Apache License 2.0
@@ -172,9 +173,9 @@ translate/
 ├── ThirdParty/                         # Git submodules (CTranslate2, sentencepiece)
 ├── scripts/
 │   ├── dev_setup.sh                    # Full development environment setup
-│   ├── build_thirdparty_universal.sh   # Build CTranslate2 + SentencePiece universal
+│   ├── build_thirdparty_universal.sh   # Build CTranslate2 + SentencePiece
 │   ├── fetch_and_convert_models.sh     # Download and convert OPUS-MT models
-│   ├── build_core_universal.sh         # Build Rust staticlib universal2
+│   ├── build_core_universal.sh         # Build Rust staticlib
 │   └── package.sh                      # Package app into .dmg
 ├── build/                              # Build output (gitignored)
 ├── dist/                               # Distributable .dmg output
@@ -184,13 +185,6 @@ translate/
 ```
 
 ## Verification
-
-### Verify universal binary
-
-```bash
-lipo -info build/lib/libtranslator_core.a
-# Expected: Architectures in the fat file: ... are: x86_64 arm64
-```
 
 ### Run Rust unit and integration tests
 
@@ -208,8 +202,8 @@ MODELS_DIR=/path/to/models cargo test --manifest-path Core/translator_core/Cargo
 2. Grant Accessibility and Input Monitoring permissions when prompted.
 3. Open any text editor and type "Hello, how are you?"
 4. Select the text and press Ctrl+Option+T.
-5. Verify that a floating panel appears with a Russian translation.
-6. Type some Russian text, select it, press the hotkey again, and verify English output.
+5. Verify that the text is replaced with a Russian translation.
+6. Select the Russian text, press the hotkey again, and verify it is replaced with English.
 
 ## Configuration
 
@@ -221,11 +215,7 @@ All settings are accessible from the menu bar icon's dropdown menu.
 |---|---|---|
 | Direction | Auto Detect / EN->RU / RU->EN | Auto Detect |
 | Backend | Local (OPUS-MT) / Ollama | Local (OPUS-MT) |
-| Auto-copy to clipboard | Copy translation result to clipboard automatically | Off |
 | Restore clipboard | Restore original clipboard after capture/replace | On |
-| Auto-replace EN->RU | Replace selected text in-place for EN->RU translations | On |
-| Auto-replace RU->EN | Replace selected text in-place for RU->EN translations | Off |
-| Max input chars | Maximum number of characters accepted for translation | 8000 |
 | Hotkey | The global keyboard shortcut to trigger translation | Ctrl+Option+T |
 | Ollama endpoint | HTTP endpoint for the Ollama server | http://localhost:11434 |
 | Ollama model | Model name for the Ollama backend | llama3 |
@@ -238,10 +228,7 @@ All settings are accessible from the menu bar icon's dropdown menu.
 | `hotkeyModifiers` | UInt32 | Carbon modifier mask |
 | `direction` | Int | TranslateDirection raw value (0, 1, or 2) |
 | `backend` | String | "local" or "ollama" |
-| `autoCopyToClipboard` | Bool | Auto-copy toggle |
 | `restoreClipboard` | Bool | Restore clipboard after capture |
-| `autoReplaceEnToRu` | Bool | In-place replace for EN->RU |
-| `autoReplaceRuToEn` | Bool | In-place replace for RU->EN |
 | `maxInputChars` | Int | Character limit for input text |
 | `ollamaEndpoint` | String | Ollama server URL |
 | `ollamaModel` | String | Ollama model identifier |
@@ -258,7 +245,7 @@ Required to read selected text from other applications via the Accessibility API
 
 ### Input Monitoring
 
-Required to register the global hotkey and simulate keyboard events (Cmd+C for capture, Cmd+V for paste, Cmd+Z for undo). The app will prompt you on first launch. You can also grant it manually:
+Required to register the global hotkey and simulate keyboard events (Cmd+C for capture, Cmd+V for paste). The app will prompt you on first launch. You can also grant it manually:
 
 **System Settings > Privacy & Security > Input Monitoring > TranslateAnywhere**
 
@@ -267,15 +254,12 @@ Required to register the global hotkey and simulate keyboard events (Cmd+C for c
 | Shortcut | Action |
 |---|---|
 | Ctrl+Option+T (default) | Trigger translation of selected text |
-| Esc | Dismiss the translation panel |
-| Cmd+Z | Undo the last in-place text replacement |
-| Cmd+C | Copy translation result from the panel |
 
 The trigger hotkey can be changed to any combination that includes at least Control or Command as a modifier.
 
 ## Edge Cases Handled
 
-1. **Empty selection** -- If no text is selected when the hotkey is pressed, the app does nothing gracefully (no crash, no empty panel).
+1. **Empty selection** -- If no text is selected when the hotkey is pressed, the app does nothing gracefully.
 2. **Secure input mode** -- When macOS secure input is active (e.g., password fields), the app skips clipboard capture entirely and uses only the Accessibility API fallback, which correctly refuses to read secure text fields.
 3. **Clipboard preservation** -- The user's clipboard contents (including images, RTF, and file references -- not just plain text) are saved before capture and restored afterward when the "Restore clipboard" preference is enabled.
 4. **Mutex poisoning recovery** -- If the translation thread panics, the Rust mutex is recovered via `poisoned.into_inner()` rather than propagating the panic.
@@ -319,9 +303,9 @@ The trigger hotkey can be changed to any combination that includes at least Cont
 
 ### Build failures
 
-- Ensure all Rust targets are installed: `rustup target add aarch64-apple-darwin x86_64-apple-darwin`.
 - CTranslate2 and SentencePiece require CMake 3.18+. Install via `brew install cmake`.
 - If `build_thirdparty_universal.sh` fails, try deleting `ThirdParty/build/` and re-running.
+- For universal2 builds, install both targets: `rustup target add aarch64-apple-darwin x86_64-apple-darwin`.
 
 ## License
 

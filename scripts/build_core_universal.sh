@@ -7,8 +7,12 @@ CORE_DIR="$ROOT/Core/translator_core"
 
 echo "Building Rust staticlib (universal2)..."
 
-# Ensure targets
-rustup target add aarch64-apple-darwin x86_64-apple-darwin
+# Ensure targets (skip if rustup not available, e.g. Homebrew Rust)
+if command -v rustup &>/dev/null; then
+    rustup target add aarch64-apple-darwin x86_64-apple-darwin
+else
+    echo "  (rustup not found — assuming targets already available via Homebrew Rust)"
+fi
 
 # Build for arm64
 echo "  Building arm64..."

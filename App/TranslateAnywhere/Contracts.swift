@@ -64,10 +64,7 @@ enum UDKey {
     static let hotkeyModifiers     = "hotkeyModifiers"      // UInt32 (Carbon modifier mask)
     static let direction            = "direction"             // Int (TranslateDirection.rawValue)
     static let backend              = "backend"               // String (TranslationBackend.rawValue)
-    static let autoCopyToClipboard  = "autoCopyToClipboard"  // Bool
     static let restoreClipboard     = "restoreClipboard"     // Bool (default: true)
-    static let autoReplaceEnToRu    = "autoReplaceEnToRu"    // Bool (default: true)
-    static let autoReplaceRuToEn    = "autoReplaceRuToEn"    // Bool (default: false)
     static let maxInputChars        = "maxInputChars"        // Int  (default: 8000)
     static let ollamaEndpoint       = "ollamaEndpoint"       // String
     static let ollamaModel          = "ollamaModel"          // String
@@ -79,10 +76,7 @@ enum UDKey {
             hotkeyModifiers:     UInt32(0x0900), // controlKey | optionKey (Carbon)
             direction:           TranslateDirection.autoDetect.rawValue,
             backend:             TranslationBackend.local.rawValue,
-            autoCopyToClipboard: false,
             restoreClipboard:    true,
-            autoReplaceEnToRu:   true,
-            autoReplaceRuToEn:   false,
             maxInputChars:       8000,
             ollamaEndpoint:      "http://localhost:11434",
             ollamaModel:         "llama3",
@@ -95,9 +89,6 @@ enum UDKey {
 extension Notification.Name {
     static let hotkeyTriggered       = Notification.Name("TranslateAnywhere.hotkeyTriggered")
     static let hotkeyChanged         = Notification.Name("TranslateAnywhere.hotkeyChanged")
-    static let translationCompleted  = Notification.Name("TranslateAnywhere.translationCompleted")
-    static let panelShouldShow       = Notification.Name("TranslateAnywhere.panelShouldShow")
-    static let panelShouldDismiss    = Notification.Name("TranslateAnywhere.panelShouldDismiss")
 }
 
 // MARK: - Constants

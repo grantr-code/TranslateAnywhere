@@ -76,7 +76,7 @@ bool load_model(ModelPair& model, const std::string& model_dir, int threads) {
         model.translator = std::make_unique<ctranslate2::Translator>(
             model_dir,
             ctranslate2::Device::CPU,
-            ctranslate2::ComputeType::INT8,
+            ctranslate2::ComputeType::DEFAULT,
             std::vector<int>{0},  // device indices
             pool_config
         );
@@ -160,10 +160,15 @@ std::string translate_impl(const char* input_text, const char* model_base_dir,
         return "";
     }
 
+    // OPUS-MT models require an EOS token at the end of the source sequence
+    tokens.push_back("</s>");
+
     // Translate via CTranslate2
     ctranslate2::TranslationOptions options;
     options.beam_size = 4;
-    options.max_decoding_length = 512;
+    options.max_decoding_length = 256;
+    options.repetition_penalty = 1.2f;
+    options.no_repeat_ngram_size = 3;
 
     std::vector<std::vector<std::string>> batch = {tokens};
 

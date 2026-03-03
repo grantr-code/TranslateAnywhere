@@ -38,9 +38,10 @@ final class TranslatorService: @unchecked Sendable {
             return false
         }
 
-        logger.info("Initializing translator core with model path: \(resourcePath)")
+        let modelPath = resourcePath + "/models"
+        logger.info("Initializing translator core with model path: \(modelPath)")
 
-        let utf8 = Array(resourcePath.utf8)
+        let utf8 = Array(modelPath.utf8)
         let result: Int32 = utf8.withUnsafeBufferPointer { buf in
             guard let base = buf.baseAddress else { return Int32(-1) }
             return bridge_tc_init(base, UInt32(buf.count), 0)

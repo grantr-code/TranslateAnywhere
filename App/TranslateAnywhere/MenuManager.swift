@@ -11,10 +11,7 @@
  *   ──────────────────────
  *   Direction >           (submenu)
  *   ──────────────────────
- *   Auto-copy to clipboard      (toggle)
  *   Restore clipboard after capture  (toggle)
- *   Auto-replace when EN->RU    (toggle)
- *   Auto-replace when RU->EN    (toggle)
  *   ──────────────────────
  *   Backend >             (submenu)
  *   ──────────────────────
@@ -109,33 +106,12 @@ final class MenuManager: NSObject {
         menu.addItem(.separator())
 
         // ── Toggle items ──
-        let autoCopy = NSMenuItem(title: "Auto-copy to clipboard",
-                                  action: #selector(toggleAutoCopy(_:)),
-                                  keyEquivalent: "")
-        autoCopy.target = self
-        autoCopy.state = settings.autoCopyToClipboard ? .on : .off
-        menu.addItem(autoCopy)
-
         let restoreClip = NSMenuItem(title: "Restore clipboard after capture",
                                      action: #selector(toggleRestoreClipboard(_:)),
                                      keyEquivalent: "")
         restoreClip.target = self
         restoreClip.state = settings.restoreClipboard ? .on : .off
         menu.addItem(restoreClip)
-
-        let autoReplaceEN = NSMenuItem(title: "Auto-replace when EN\u{2192}RU",
-                                       action: #selector(toggleAutoReplaceEnToRu(_:)),
-                                       keyEquivalent: "")
-        autoReplaceEN.target = self
-        autoReplaceEN.state = settings.autoReplaceEnToRu ? .on : .off
-        menu.addItem(autoReplaceEN)
-
-        let autoReplaceRU = NSMenuItem(title: "Auto-replace when RU\u{2192}EN",
-                                       action: #selector(toggleAutoReplaceRuToEn(_:)),
-                                       keyEquivalent: "")
-        autoReplaceRU.target = self
-        autoReplaceRU.state = settings.autoReplaceRuToEn ? .on : .off
-        menu.addItem(autoReplaceRU)
 
         menu.addItem(.separator())
 
@@ -206,31 +182,10 @@ final class MenuManager: NSObject {
         buildMenu()
     }
 
-    @objc private func toggleAutoCopy(_ sender: NSMenuItem) {
-        let settings = SettingsManager.shared
-        settings.autoCopyToClipboard = !settings.autoCopyToClipboard
-        logger.info("Menu: Auto-copy = \(settings.autoCopyToClipboard)")
-        buildMenu()
-    }
-
     @objc private func toggleRestoreClipboard(_ sender: NSMenuItem) {
         let settings = SettingsManager.shared
         settings.restoreClipboard = !settings.restoreClipboard
         logger.info("Menu: Restore clipboard = \(settings.restoreClipboard)")
-        buildMenu()
-    }
-
-    @objc private func toggleAutoReplaceEnToRu(_ sender: NSMenuItem) {
-        let settings = SettingsManager.shared
-        settings.autoReplaceEnToRu = !settings.autoReplaceEnToRu
-        logger.info("Menu: Auto-replace EN->RU = \(settings.autoReplaceEnToRu)")
-        buildMenu()
-    }
-
-    @objc private func toggleAutoReplaceRuToEn(_ sender: NSMenuItem) {
-        let settings = SettingsManager.shared
-        settings.autoReplaceRuToEn = !settings.autoReplaceRuToEn
-        logger.info("Menu: Auto-replace RU->EN = \(settings.autoReplaceRuToEn)")
         buildMenu()
     }
 
